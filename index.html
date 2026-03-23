@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Diario SSO - SICE</title>
+    <!-- Tailwind CSS para diseño responsivo y moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería para la firma digital -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- Librería para generar el PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* Estilos adicionales para impresión y canvas */
+        body { font-family: 'Arial', sans-serif; background-color: #f3f4f6; }
+        .signature-pad { border: 1px solid #d1d5db; border-radius: 0.5rem; width: 100%; height: 200px; background-color: #ffffff; touch-action: none; }
+        
+        /* Contenedor del reporte que se convertirá en PDF (oculto en la web) */
+        #pdf-template { display: none; background: white; padding: 20px; color: #000; }
+        .pdf-section { margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
+        .pdf-title { font-size: 14px; font-weight: bold; background-color: #e5e7eb; padding: 5px; text-align: center; margin-bottom: 10px; border: 1px solid #9ca3af; }
+        .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #9ca3af; padding: 6px; text-align: left; }
+        .pdf-table th { background-color: #f3f4f6; width: 30%; font-weight: bold; }
+        .pdf-image-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .pdf-img-container { text-align: center; border: 1px solid #d1d5db; padding: 5px; break-inside: avoid; }
+        .pdf-img-container img { max-width: 100%; max-height: 250px; object-fit: contain; }
+        .pdf-img-label { font-size: 11px; font-weight: bold; margin-top: 5px; }
+        
+        /* Loader */
+        #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; justify-content: center; align-items: center; color: white; flex-direction: column; }
+        .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-gray-800 antialiased pb-20">
+
+    <!-- Loader -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <p class="font-bold text-lg">Generando PDF...</p>
+        <p class="text-sm">Por favor, espera unos segundos.</p>
+    </div>
+
+    <!-- Encabezado de la App -->
+    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-center">Reporte Diario SSO</h1>
+        <p class="text-xs text-center text-blue-200">SICE Agencia Chile S.A.</p>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+        
+        <form id="report-form" class="space-y-6">
+            
+            <!-- INFORMACIÓN GENERAL -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">1. Información General</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha y Hora de Actividad</label>
+                        <input type="datetime-local" id="fecha" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Lugar Específico</label>
+                        <select id="lugar" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                            <option value="">Seleccione un lugar...</option>
+                            <option value="Estación Central">Estación Central</option>
+                            <option value="Estación San Bernardo">Estación San Bernardo</option>
+                            <option value="Estación Rancagua">Estación Rancagua</option>
+                            <option value="Estación San Fernando">Estación San Fernando</option>
+                            <option value="Estación Curicó">Estación Curicó</option>
+                            <option value="Estación Molina">Estación Molina</option>
+                            <option value="Estación Talca">Estación Talca</option>
+                            <option value="Estación San Javier">Estación San Javier</option>
+                            <option value="Estación Linares">Estación Linares</option>
+                            <option value="Estación Parral">Estación Parral</option>
+                            <option value="Estación San Carlos">Estación San Carlos</option>
+                            <option value="Estación Chillán">Estación Chillán</option>
+                            <option value="Dependencias SICE">Dependencias SICE</option>
+                            <option value="Local Técnico">Local Técnico</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Trabajos Realizados</label>
+                        <textarea id="trabajos" rows="3" required placeholder="Describa los trabajos ejecutados..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Observaciones de Prevención de Riesgos</label>
+                        <textarea id="observaciones" rows="3" required placeholder="Indique hallazgos, correcciones o condiciones..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PERSONAL A CARGO -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">2. Personal a Cargo</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Supervisor</label>
+                        <select id="supervisor" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                            <option value="">Seleccione supervisor...</option>
+                            <option value="Juan Carlos Rojas">Juan Carlos Rojas</option>
+                            <option value="Francisco Garate">Francisco Gárate</option>
+                            <option value="Milton Gonzalez">Milton González</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prevencionista de Riesgos</label>
+                        <select id="prevencionista" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                            <option value="">Seleccione prevencionista...</option>
+                            <option value="Patricio Pau">Patricio Pau</option>
+                            <option value="Daniel Alarcon">Daniel Alarcón</option>
+                            <option value="Gonzalo Nuñez">Gonzalo Núñez</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DOTACIÓN Y RECURSOS -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">3. Dotación y Recursos</h2>
+                
+                <div class="space-y-4">
+                    <!-- ITO -->
+                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                        <label class="block text-sm font-bold mb-2">Trabajadores ITO (CyD)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-1">
+                                <label class="text-xs text-gray-500">Cantidad</label>
+                                <input type="number" id="ito_cant" min="0" value="0" class="w-full border border-gray-300 p-2 rounded text-center">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-xs text-gray-500">Desglose / Nombres</label>
+                                <input type="text" id="ito_desc" placeholder="Ej: ITO presente..." class="w-full border border-gray-300 p-2 rounded">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SICE -->
+                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                        <label class="block text-sm font-bold mb-2">Trabajadores SICE</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-1">
+                                <label class="text-xs text-gray-500">Cantidad</label>
+                                <input type="number" id="sice_cant" min="0" value="0" class="w-full border border-gray-300 p-2 rounded text-center">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-xs text-gray-500">Desglose / Cargos</label>
+                                <input type="text" id="sice_desc" placeholder="Ej: 2 Ing, 1 Sup..." class="w-full border border-gray-300 p-2 rounded">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehículos -->
+                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                        <label class="block text-sm font-bold mb-2">Camionetas SICE</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="col-span-1">
+                                <label class="text-xs text-gray-500">Cantidad</label>
+                                <input type="number" id="camioneta_cant" min="0" value="0" class="w-full border border-gray-300 p-2 rounded text-center">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-xs text-gray-500">Patentes</label>
+                                <input type="text" id="camioneta_desc" placeholder="Ej: ABCD-12" class="w-full border border-gray-300 p-2 rounded">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- EVIDENCIA FOTOGRÁFICA -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">4. Evidencia Fotográfica</h2>
+                
+                <p class="text-xs text-gray-600 mb-4">Adjunte imágenes desde su cámara o galería.</p>
+
+                <div class="space-y-6">
+                    <!-- Documentos -->
+                    <div>
+                        <h3 class="font-bold text-md mb-2 text-gray-700">Documentación SSO</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">1. AST</label>
+                                <input type="file" id="foto_ast" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_ast')">
+                                <div onclick="document.getElementById('foto_ast').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_ast" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_ast" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">2. Charla 5 Min</label>
+                                <input type="file" id="foto_charla" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_charla')">
+                                <div onclick="document.getElementById('foto_charla').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_charla" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_charla" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">3. Check List 1</label>
+                                <input type="file" id="foto_chk1" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_chk1')">
+                                <div onclick="document.getElementById('foto_chk1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_chk1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_chk1" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">4. Check List 2</label>
+                                <input type="file" id="foto_chk2" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_chk2')">
+                                <div onclick="document.getElementById('foto_chk2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_chk2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_chk2" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Actividades -->
+                    <div>
+                        <h3 class="font-bold text-md mb-2 text-gray-700">Actividades en Terreno</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 1</label>
+                                <input type="file" id="foto_act1" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act1')">
+                                <div onclick="document.getElementById('foto_act1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_act1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_act1" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 2</label>
+                                <input type="file" id="foto_act2" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act2')">
+                                <div onclick="document.getElementById('foto_act2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_act2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_act2" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 3</label>
+                                <input type="file" id="foto_act3" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act3')">
+                                <div onclick="document.getElementById('foto_act3').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_act3" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_act3" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 4</label>
+                                <input type="file" id="foto_act4" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act4')">
+                                <div onclick="document.getElementById('foto_act4').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
+                                    <span id="text_act4" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                    <img id="preview_act4" class="hidden absolute inset-0 w-full h-full object-cover">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FIRMA -->
+            <section class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">5. Firma del Prevencionista</h2>
+                <div class="mb-2">
+                    <canvas id="signature-pad" class="signature-pad"></canvas>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" onclick="signaturePad.clear()" class="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded shadow hover:bg-gray-300">Borrar Firma</button>
+                </div>
+            </section>
+
+            <!-- BOTÓN GENERAR -->
+            <button type="button" onclick="generarPDF()" class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8">
+                Generar y Descargar PDF
+            </button>
+
+        </form>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- PLANTILLA OCULTA PARA GENERACIÓN DEL PDF   -->
+    <!-- ========================================== -->
+    <div id="pdf-wrapper" style="position: absolute; left: -9999px; top: 0;">
+        <div id="pdf-template">
+            <!-- Header del documento -->
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
+                <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">SICE</div>
+                <div style="text-align: center; flex-grow: 1;">
+                    <h2 style="margin: 0; font-size: 16px;">SISTEMA DE GESTIÓN SEGURIDAD Y SALUD OCUPACIONAL</h2>
+                    <p style="margin: 0; font-size: 12px; color: #4b5563;">Reporte Diario de Actividades</p>
+                </div>
+                <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">EFE</div>
+            </div>
+
+            <!-- Datos Principales -->
+            <div class="pdf-section">
+                <table class="pdf-table">
+                    <tbody>
+                        <tr>
+                            <th>Empresa</th>
+                            <td>SICE AGENCIA CHILE S.A.</td>
+                        </tr>
+                        <tr>
+                            <th>Empresa Mandante</th>
+                            <td>EFE TRENES DE CHILE</td>
+                        </tr>
+                        <tr>
+                            <th>Fecha de actividades</th>
+                            <td id="pdf-fecha"></td>
+                        </tr>
+                        <tr>
+                            <th>Contrato</th>
+                            <td>“Diseño, implementación y garantía, comunicaciones Chillán-Estación Central”. EFE/SICE</td>
+                        </tr>
+                        <tr>
+                            <th>Lugar específico</th>
+                            <td id="pdf-lugar"></td>
+                        </tr>
+                        <tr>
+                            <th>Trabajos realizados</th>
+                            <td id="pdf-trabajos"></td>
+                        </tr>
+                        <tr>
+                            <th>Observaciones Prevención</th>
+                            <td id="pdf-observaciones"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Personal -->
+            <div class="pdf-section">
+                <table class="pdf-table">
+                    <tbody>
+                        <tr>
+                            <th>Supervisor SICE</th>
+                            <td id="pdf-supervisor"></td>
+                        </tr>
+                        <tr>
+                            <th>Prevencionista de Riesgos</th>
+                            <td id="pdf-prevencionista"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Dotación -->
+            <div class="pdf-section">
+                <div class="pdf-title">DOTACIÓN Y RECURSOS</div>
+                <table class="pdf-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 25%">Ítem</th>
+                            <th style="width: 15%; text-align: center;">Cantidad</th>
+                            <th>Desglose / Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>N° de trabajadores ITO (CyD)</td>
+                            <td style="text-align: center;" id="pdf-ito-cant"></td>
+                            <td id="pdf-ito-desc"></td>
+                        </tr>
+                        <tr>
+                            <td>N° de trabajadores SICE</td>
+                            <td style="text-align: center;" id="pdf-sice-cant"></td>
+                            <td id="pdf-sice-desc"></td>
+                        </tr>
+                        <tr>
+                            <td>Camionetas SICE</td>
+                            <td style="text-align: center;" id="pdf-camioneta-cant"></td>
+                            <td id="pdf-camioneta-desc"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Firma (Forzada a no cortarse) -->
+            <div class="pdf-section" style="margin-top: 30px; text-align: center;">
+                <div style="width: 250px; margin: 0 auto; border-bottom: 1px solid #000; height: 120px; display: flex; align-items: flex-end; justify-content: center;">
+                    <img id="pdf-firma-img" src="" style="max-height: 100px; display: none;">
+                </div>
+                <p style="margin-top: 5px; font-weight: bold; font-size: 14px;" id="pdf-firma-nombre"></p>
+                <p style="font-size: 12px;">Prevencionista de Riesgos SICE</p>
+            </div>
+
+            <!-- Evidencia Fotográfica (Nueva página recomendada) -->
+            <div class="pdf-section" style="page-break-before: always; margin-top: 20px;">
+                <div class="pdf-title">EVIDENCIA FOTOGRÁFICA - DOCUMENTACIÓN</div>
+                <div class="pdf-image-grid" style="margin-bottom: 20px;">
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-ast" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">AST</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-charla" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Charla Operacional 5 Minutos</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-chk1" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Check List 1</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-chk2" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Check List 2</div>
+                    </div>
+                </div>
+
+                <div class="pdf-title">EVIDENCIA FOTOGRÁFICA - ACTIVIDADES</div>
+                <div class="pdf-image-grid">
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-act1" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Actividad 1</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-act2" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Actividad 2</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-act3" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Actividad 3</div>
+                    </div>
+                    <div class="pdf-img-container">
+                        <img id="pdf-img-act4" src="" alt="Sin imagen">
+                        <div class="pdf-img-label">Actividad 4</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Objeto global para guardar las imágenes en base64
+        const imagenesCargadas = {
+            ast: '', charla: '', chk1: '', chk2: '',
+            act1: '', act2: '', act3: '', act4: ''
+        };
+
+        // Inicializar Canvas para la Firma
+        const canvas = document.getElementById('signature-pad');
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)',
+            penColor: 'rgb(0, 0, 128)' // Azul oscuro
+        });
+
+        // Ajustar el canvas al tamaño del contenedor en dispositivos móviles
+        function resizeCanvas() {
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            signaturePad.clear(); // Limpia al redimensionar para evitar distorsión
+        }
+        window.addEventListener("resize", resizeCanvas);
+        // Llamar tras cargar la página
+        setTimeout(resizeCanvas, 100); 
+
+        // Función para leer imagen seleccionada y mostrar vista previa
+        function previewImage(event, previewId) {
+            const input = event.target;
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Mostrar vista previa en el formulario
+                const imgElement = document.getElementById(previewId);
+                imgElement.src = e.target.result;
+                imgElement.classList.remove('hidden');
+                
+                // Ocultar el texto de "+ Tocar para foto"
+                const textElementId = input.id.replace('foto_', 'text_');
+                document.getElementById(textElementId).classList.add('hidden');
+
+                // Guardar en variable global para el PDF
+                const key = input.id.replace('foto_', '');
+                imagenesCargadas[key] = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        // Formatear Fecha y Hora
+        function formatearFecha(datetimeLocalValue) {
+            if (!datetimeLocalValue) return "";
+            const fechaObj = new Date(datetimeLocalValue);
+            const dia = String(fechaObj.getDate()).padStart(2, '0');
+            const mes = String(fechaObj.getMonth() + 1).padStart(2, '0');
+            const año = fechaObj.getFullYear();
+            
+            let horas = fechaObj.getHours();
+            const minutos = String(fechaObj.getMinutes()).padStart(2, '0');
+            const ampm = horas >= 12 ? 'PM' : 'AM';
+            horas = horas % 12;
+            horas = horas ? horas : 12; // Hora '0' debe ser '12'
+            const horasStr = String(horas).padStart(2, '0');
+
+            return `${dia}/${mes}/${año}; ${horasStr}:${minutos} ${ampm}`;
+        }
+
+        // Función principal: Recopilar datos y generar PDF
+        function generarPDF() {
+            // Validaciones básicas
+            const lugar = document.getElementById('lugar').value;
+            const fechaInput = document.getElementById('fecha').value;
+            if(!fechaInput || !lugar) {
+                alert("Por favor, ingresa al menos la Fecha y el Lugar Específico.");
+                return;
+            }
+
+            // Mostrar Loader
+            document.getElementById('loader').style.display = 'flex';
+
+            // 1. Traspasar datos del formulario a la plantilla HTML oculta
+            document.getElementById('pdf-fecha').innerText = formatearFecha(fechaInput);
+            document.getElementById('pdf-lugar').innerText = lugar;
+            document.getElementById('pdf-trabajos').innerText = document.getElementById('trabajos').value || "Sin descripción.";
+            document.getElementById('pdf-observaciones').innerText = document.getElementById('observaciones').value || "Sin observaciones.";
+            
+            document.getElementById('pdf-supervisor').innerText = document.getElementById('supervisor').value || "No especificado";
+            const nombrePreve = document.getElementById('prevencionista').value;
+            document.getElementById('pdf-prevencionista').innerText = nombrePreve || "No especificado";
+            document.getElementById('pdf-firma-nombre').innerText = nombrePreve || "Prevencionista de Riesgos";
+
+            document.getElementById('pdf-ito-cant').innerText = document.getElementById('ito_cant').value;
+            document.getElementById('pdf-ito-desc').innerText = document.getElementById('ito_desc').value;
+            
+            document.getElementById('pdf-sice-cant').innerText = document.getElementById('sice_cant').value;
+            document.getElementById('pdf-sice-desc').innerText = document.getElementById('sice_desc').value;
+            
+            document.getElementById('pdf-camioneta-cant').innerText = document.getElementById('camioneta_cant').value;
+            document.getElementById('pdf-camioneta-desc').innerText = document.getElementById('camioneta_desc').value;
+
+            // 2. Traspasar Firma
+            const firmaImg = document.getElementById('pdf-firma-img');
+            if (!signaturePad.isEmpty()) {
+                firmaImg.src = signaturePad.toDataURL();
+                firmaImg.style.display = 'block';
+            } else {
+                firmaImg.style.display = 'none';
+            }
+
+            // 3. Traspasar Imágenes (ocultar las que no se subieron para que no queden recuadros rotos)
+            const mapImagenes = [
+                { key: 'ast', pdfId: 'pdf-img-ast' }, { key: 'charla', pdfId: 'pdf-img-charla' },
+                { key: 'chk1', pdfId: 'pdf-img-chk1' }, { key: 'chk2', pdfId: 'pdf-img-chk2' },
+                { key: 'act1', pdfId: 'pdf-img-act1' }, { key: 'act2', pdfId: 'pdf-img-act2' },
+                { key: 'act3', pdfId: 'pdf-img-act3' }, { key: 'act4', pdfId: 'pdf-img-act4' }
+            ];
+
+            mapImagenes.forEach(imgData => {
+                const imgElement = document.getElementById(imgData.pdfId);
+                if (imagenesCargadas[imgData.key]) {
+                    imgElement.src = imagenesCargadas[imgData.key];
+                    imgElement.style.display = 'inline-block';
+                } else {
+                    imgElement.style.display = 'none'; // Oculta la imagen si no hay fuente
+                    imgElement.parentNode.innerHTML += "<span style='font-size: 10px; color: gray;'>[Sin imagen]</span>";
+                }
+            });
+
+            // 4. Configurar y generar PDF
+            const elemento = document.getElementById('pdf-template');
+            
+            // Generar un nombre de archivo dinámico
+            const dateObj = new Date();
+            const fechaStr = `${dateObj.getFullYear()}${String(dateObj.getMonth()+1).padStart(2,'0')}${String(dateObj.getDate()).padStart(2,'0')}`;
+            const fileName = `Reporte_Diario_SICE_${lugar.replace(/\s+/g, '')}_${fechaStr}.pdf`;
+
+            const opciones = {
+                margin:       [10, 10, 10, 10], // top, left, bottom, right
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.85 }, // Comprimir un poco para evitar PDFs gigantes
+                html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            // Pequeña pausa para asegurar que el DOM se actualizó antes de capturar
+            setTimeout(() => {
+                html2pdf().set(opciones).from(elemento).save().then(() => {
+                    // Ocultar Loader cuando termina
+                    document.getElementById('loader').style.display = 'none';
+                    alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
+                }).catch(err => {
+                    console.error("Error al generar PDF:", err);
+                    document.getElementById('loader').style.display = 'none';
+                    alert('Ocurrió un error al generar el PDF.');
+                });
+            }, 500);
+        }
+    </script>
+</body>
+</html>
