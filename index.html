@@ -29,9 +29,9 @@
         }
         #pdf-template {
             background: white;
-            padding: 36px;
+            padding: 0;            /* Sin padding interno — los márgenes los pone jsPDF */
             color: #000;
-            width: 794px;          /* A4 a 96 dpi ≈ 794 px */
+            width: 180mm;          /* A4 (210mm) − 15mm izq − 15mm der = 180mm exactos */
             box-sizing: border-box;
             font-family: Arial, sans-serif;
         }
@@ -61,6 +61,9 @@
             padding: 7px 9px;
             text-align: left;
             vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 0;          /* Fuerza que las celdas respeten el ancho de tabla */
         }
         .pdf-table th {
             background-color: #f3f4f6;
@@ -350,8 +353,9 @@
          ══════════════════════════════════════════ -->
     <div id="pdf-wrapper">
       <div id="pdf-template">
+        <!-- Contenido con padding interno para separar del borde de página -->
+        <div style="padding: 0 2mm;">
 
-        <!-- Encabezado -->
         <div class="pdf-section" style="
             display:flex; justify-content:space-between; align-items:center;
             border-bottom:2px solid #1e3a8a; padding-bottom:14px; margin-bottom:22px;">
@@ -518,6 +522,7 @@
             </div>
         </div>
 
+        </div><!-- /inner padding -->
       </div><!-- /pdf-template -->
     </div><!-- /pdf-wrapper -->
 
@@ -683,19 +688,25 @@
         const scrollActual = window.scrollY;
         window.scrollTo(0, 0);
 
-        const wrapper = document.getElementById('pdf-wrapper');
+        const wrapper  = document.getElementById('pdf-wrapper');
+        const elemento = document.getElementById('pdf-template');
+
         wrapper.style.visibility = 'visible';
         wrapper.style.zIndex     = '9999';
 
+        /* windowWidth dinámico: lee el ancho real del template una vez visible.
+           Así html2canvas nunca recorta el lado derecho.                        */
+        const templatePx = elemento.scrollWidth;
+
         const opciones = {
-            margin:      [10, 10, 10, 10],
+            margin:      [15, 15, 15, 15],   /* 15 mm en cada lado → contenido 180 mm */
             filename:    fileName,
-            image:       { type: 'jpeg', quality: 0.92 },
+            image:       { type: 'jpeg', quality: 0.93 },
             html2canvas: {
                 scale:       2,
                 useCORS:     true,
                 scrollY:     0,
-                windowWidth: 794
+                windowWidth: templatePx      /* coincide exactamente con el template */
             },
             pagebreak: { mode: ['css', 'legacy'] },
             jsPDF:     { unit: 'mm', format: 'a4', orientation: 'portrait' }
