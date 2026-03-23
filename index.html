@@ -16,7 +16,7 @@
         body { font-family: 'Arial', sans-serif; background-color: #f3f4f6; }
         .signature-pad { border: 1px solid #d1d5db; border-radius: 0.5rem; width: 100%; height: 200px; background-color: #ffffff; touch-action: none; }
         
-        /* Contenedor del reporte que se convertirá en PDF (oculto en la web) */
+        /* Contenedor del reporte que se convertirá en PDF (se renderiza con ancho fijo para que html2pdf lo lea bien) */
         #pdf-template { background: white; padding: 40px; color: #000; width: 800px; }
         .pdf-section { margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
         .pdf-title { font-size: 14px; font-weight: bold; background-color: #e5e7eb; padding: 5px; text-align: center; margin-bottom: 10px; border: 1px solid #9ca3af; }
@@ -105,8 +105,8 @@
                         <select id="supervisor" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
                             <option value="">Seleccione supervisor...</option>
                             <option value="Juan Carlos Rojas">Juan Carlos Rojas</option>
-                            <option value="Francisco Garate">Francisco Gárate</option>
-                            <option value="Milton Gonzalez">Milton González</option>
+                            <option value="Francisco Gárate">Francisco Gárate</option>
+                            <option value="Milton González">Milton González</option>
                         </select>
                     </div>
 
@@ -115,8 +115,8 @@
                         <select id="prevencionista" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
                             <option value="">Seleccione prevencionista...</option>
                             <option value="Patricio Pau">Patricio Pau</option>
-                            <option value="Daniel Alarcon">Daniel Alarcón</option>
-                            <option value="Gonzalo Nuñez">Gonzalo Núñez</option>
+                            <option value="Daniel Alarcón">Daniel Alarcón</option>
+                            <option value="Gonzalo Núñez">Gonzalo Núñez</option>
                         </select>
                     </div>
                 </div>
@@ -187,7 +187,8 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">1. AST</label>
-                                <input type="file" id="foto_ast" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_ast')">
+                                <!-- Sin capture="environment" para permitir acceso a la galería -->
+                                <input type="file" id="foto_ast" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_ast')">
                                 <div onclick="document.getElementById('foto_ast').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_ast" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_ast" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -195,7 +196,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">2. Charla 5 Min</label>
-                                <input type="file" id="foto_charla" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_charla')">
+                                <input type="file" id="foto_charla" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_charla')">
                                 <div onclick="document.getElementById('foto_charla').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_charla" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_charla" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -203,7 +204,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">3. Check List 1</label>
-                                <input type="file" id="foto_chk1" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_chk1')">
+                                <input type="file" id="foto_chk1" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_chk1')">
                                 <div onclick="document.getElementById('foto_chk1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_chk1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_chk1" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -211,7 +212,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">4. Check List 2</label>
-                                <input type="file" id="foto_chk2" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_chk2')">
+                                <input type="file" id="foto_chk2" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_chk2')">
                                 <div onclick="document.getElementById('foto_chk2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_chk2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_chk2" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -228,7 +229,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 1</label>
-                                <input type="file" id="foto_act1" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act1')">
+                                <input type="file" id="foto_act1" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act1')">
                                 <div onclick="document.getElementById('foto_act1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_act1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_act1" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -236,7 +237,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 2</label>
-                                <input type="file" id="foto_act2" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act2')">
+                                <input type="file" id="foto_act2" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act2')">
                                 <div onclick="document.getElementById('foto_act2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_act2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_act2" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -244,7 +245,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 3</label>
-                                <input type="file" id="foto_act3" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act3')">
+                                <input type="file" id="foto_act3" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act3')">
                                 <div onclick="document.getElementById('foto_act3').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_act3" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_act3" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -252,7 +253,7 @@
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 4</label>
-                                <input type="file" id="foto_act4" accept="image/*" capture="environment" class="hidden" onchange="previewImage(event, 'preview_act4')">
+                                <input type="file" id="foto_act4" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act4')">
                                 <div onclick="document.getElementById('foto_act4').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
                                     <span id="text_act4" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
                                     <img id="preview_act4" class="hidden absolute inset-0 w-full h-full object-cover">
@@ -285,13 +286,14 @@
     <!-- ========================================== -->
     <!-- PLANTILLA OCULTA PARA GENERACIÓN DEL PDF   -->
     <!-- ========================================== -->
+    <!-- Se oculta empujándolo fuera de la pantalla visual para que html2pdf lo pueda procesar -->
     <div id="pdf-wrapper" style="position: absolute; left: -9999px; top: 0;">
         <div id="pdf-template">
             <!-- Header del documento -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
                 <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">SICE</div>
                 <div style="text-align: center; flex-grow: 1;">
-                    <h2 style="margin: 0; font-size: 16px;">SISTEMA DE GESTIÓN SEGURIDAD Y SALUD OCUPACIONAL</h2>
+                    <h2 style="margin: 0; font-size: 16px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD OCUPACIONAL</h2>
                     <p style="margin: 0; font-size: 12px; color: #4b5563;">Reporte Diario de Actividades</p>
                 </div>
                 <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">EFE</div>
