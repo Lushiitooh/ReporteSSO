@@ -12,25 +12,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <style>
-        /* Estilos adicionales para impresión y canvas */
+        /* Estilos base */
         body { font-family: 'Arial', sans-serif; background-color: #f3f4f6; }
         .signature-pad { border: 1px solid #d1d5db; border-radius: 0.5rem; width: 100%; height: 200px; background-color: #ffffff; touch-action: none; }
         
-        /* Contenedor del reporte que se convertirá en PDF (se renderiza con ancho fijo para que html2pdf lo lea bien) */
-        #pdf-template { background: white; padding: 40px; color: #000; width: 800px; }
-        .pdf-section { margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
-        .pdf-title { font-size: 14px; font-weight: bold; background-color: #e5e7eb; padding: 5px; text-align: center; margin-bottom: 10px; border: 1px solid #9ca3af; }
-        .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
-        .pdf-table th, .pdf-table td { border: 1px solid #9ca3af; padding: 6px; text-align: left; }
-        .pdf-table th { background-color: #f3f4f6; width: 30%; font-weight: bold; }
-        .pdf-image-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .pdf-img-container { text-align: center; border: 1px solid #d1d5db; padding: 5px; break-inside: avoid; }
-        .pdf-img-container img { max-width: 100%; max-height: 250px; object-fit: contain; }
-        .pdf-img-label { font-size: 11px; font-weight: bold; margin-top: 5px; }
+        /* Contenedor del reporte que se convertirá en PDF */
+        #pdf-wrapper { visibility: hidden; position: absolute; left: -9999px; top: 0; z-index: -100; }
+        #pdf-template { background: white; padding: 40px; color: #000; width: 800px; box-sizing: border-box; }
         
-        /* Loader */
-        #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; justify-content: center; align-items: center; color: white; flex-direction: column; }
-        .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px;}
+        /* Reglas para evitar que el PDF se corte a la mitad de una tabla o sección */
+        .pdf-section { margin-bottom: 20px; page-break-inside: avoid; break-inside: avoid; }
+        
+        .pdf-title { font-size: 14px; font-weight: bold; background-color: #e5e7eb; padding: 6px; text-align: center; margin-bottom: 10px; border: 1px solid #9ca3af; }
+        .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #9ca3af; padding: 8px; text-align: left; vertical-align: top; }
+        .pdf-table th { background-color: #f3f4f6; width: 30%; font-weight: bold; }
+        
+        /* Cuadrícula de fotos */
+        .pdf-image-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; page-break-inside: avoid; break-inside: avoid; }
+        .pdf-img-container { text-align: center; border: 1px solid #d1d5db; padding: 5px; background: #fafafa; }
+        .pdf-img-container img { width: 100%; height: 220px; object-fit: contain; }
+        .pdf-img-label { font-size: 11px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
+        
+        /* Loader de carga */
+        #loader { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; justify-content: center; align-items: center; color: white; flex-direction: column; }
+        .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 15px;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -39,14 +45,16 @@
     <!-- Loader -->
     <div id="loader">
         <div class="spinner"></div>
-        <p class="font-bold text-lg">Generando PDF...</p>
-        <p class="text-sm">Por favor, espera unos segundos.</p>
+        <p class="font-bold text-xl">Generando PDF...</p>
+        <p class="text-sm mt-2 text-gray-300">Ajustando el documento, por favor espera.</p>
     </div>
 
-    <!-- Encabezado de la App -->
-    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10">
-        <h1 class="text-xl font-bold text-center">Reporte Diario SSO</h1>
-        <p class="text-xs text-center text-blue-200">SICE Agencia Chile S.A.</p>
+    <!-- Encabezado de la App (Vista Celular) -->
+    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold">Reporte Diario SSO</h1>
+            <p class="text-xs text-blue-200">SICE Agencia Chile S.A.</p>
+        </div>
     </header>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
@@ -54,18 +62,18 @@
         <form id="report-form" class="space-y-6">
             
             <!-- INFORMACIÓN GENERAL -->
-            <section class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">1. Información General</h2>
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">1. Información General</h2>
                 
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha y Hora de Actividad</label>
-                        <input type="datetime-local" id="fecha" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="datetime-local" id="fecha" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Lugar Específico</label>
-                        <select id="lugar" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                        <select id="lugar" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione un lugar...</option>
                             <option value="Estación Central">Estación Central</option>
                             <option value="Estación San Bernardo">Estación San Bernardo</option>
@@ -86,23 +94,23 @@
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Trabajos Realizados</label>
-                        <textarea id="trabajos" rows="3" required placeholder="Describa los trabajos ejecutados..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        <textarea id="trabajos" rows="3" required placeholder="Describa los trabajos ejecutados..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50"></textarea>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Observaciones de Prevención de Riesgos</label>
-                        <textarea id="observaciones" rows="3" required placeholder="Indique hallazgos, correcciones o condiciones..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500"></textarea>
+                        <textarea id="observaciones" rows="3" required placeholder="Indique hallazgos, correcciones o condiciones..." class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50"></textarea>
                     </div>
                 </div>
             </section>
 
             <!-- PERSONAL A CARGO -->
-            <section class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">2. Personal a Cargo</h2>
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">2. Personal a Cargo</h2>
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Supervisor</label>
-                        <select id="supervisor" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                        <select id="supervisor" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione supervisor...</option>
                             <option value="Juan Carlos Rojas">Juan Carlos Rojas</option>
                             <option value="Francisco Gárate">Francisco Gárate</option>
@@ -112,7 +120,7 @@
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Prevencionista de Riesgos</label>
-                        <select id="prevencionista" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500">
+                        <select id="prevencionista" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione prevencionista...</option>
                             <option value="Patricio Pau">Patricio Pau</option>
                             <option value="Daniel Alarcón">Daniel Alarcón</option>
@@ -123,8 +131,8 @@
             </section>
 
             <!-- DOTACIÓN Y RECURSOS -->
-            <section class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">3. Dotación y Recursos</h2>
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Dotación y Recursos</h2>
                 
                 <div class="space-y-4">
                     <!-- ITO -->
@@ -175,87 +183,110 @@
             </section>
 
             <!-- EVIDENCIA FOTOGRÁFICA -->
-            <section class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">4. Evidencia Fotográfica</h2>
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">4. Evidencia Fotográfica</h2>
                 
-                <p class="text-xs text-gray-600 mb-4">Adjunte imágenes desde su cámara o galería.</p>
+                <p class="text-xs text-gray-600 mb-4">Adjunte imágenes (puede elegirlas de su galería o tomar una foto ahora).</p>
 
                 <div class="space-y-6">
                     <!-- Documentos -->
                     <div>
-                        <h3 class="font-bold text-md mb-2 text-gray-700">Documentación SSO</h3>
+                        <h3 class="font-bold text-sm mb-2 text-blue-800">DOCUMENTACIÓN SSO</h3>
                         <div class="grid grid-cols-2 gap-3">
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">1. AST</label>
-                                <!-- Sin capture="environment" para permitir acceso a la galería -->
                                 <input type="file" id="foto_ast" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_ast')">
-                                <div onclick="document.getElementById('foto_ast').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_ast" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_ast').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_ast" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_ast" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">2. Charla 5 Min</label>
                                 <input type="file" id="foto_charla" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_charla')">
-                                <div onclick="document.getElementById('foto_charla').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_charla" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_charla').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_charla" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_charla" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">3. Check List 1</label>
                                 <input type="file" id="foto_chk1" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_chk1')">
-                                <div onclick="document.getElementById('foto_chk1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_chk1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_chk1').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_chk1" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_chk1" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">4. Check List 2</label>
                                 <input type="file" id="foto_chk2" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_chk2')">
-                                <div onclick="document.getElementById('foto_chk2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_chk2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_chk2').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_chk2" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_chk2" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <hr>
+                    <hr class="border-gray-300">
 
                     <!-- Actividades -->
                     <div>
-                        <h3 class="font-bold text-md mb-2 text-gray-700">Actividades en Terreno</h3>
+                        <h3 class="font-bold text-sm mb-2 text-blue-800">ACTIVIDADES EN TERRENO</h3>
                         <div class="grid grid-cols-2 gap-3">
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 1</label>
                                 <input type="file" id="foto_act1" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act1')">
-                                <div onclick="document.getElementById('foto_act1').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_act1" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_act1').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_act1" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_act1" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 2</label>
                                 <input type="file" id="foto_act2" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act2')">
-                                <div onclick="document.getElementById('foto_act2').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_act2" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_act2').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_act2" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_act2" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 3</label>
                                 <input type="file" id="foto_act3" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act3')">
-                                <div onclick="document.getElementById('foto_act3').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_act3" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_act3').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_act3" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_act3" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
                             <div class="text-center">
                                 <label class="block text-xs font-semibold mb-1 truncate">Foto Actividad 4</label>
                                 <input type="file" id="foto_act4" accept="image/*" class="hidden" onchange="previewImage(event, 'preview_act4')">
-                                <div onclick="document.getElementById('foto_act4').click()" class="border-2 border-dashed border-gray-400 rounded h-24 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative">
-                                    <span id="text_act4" class="text-xs text-gray-500 px-2">+ Tocar para foto</span>
+                                <div onclick="document.getElementById('foto_act4').click()" class="border-2 border-dashed border-gray-400 rounded h-28 flex items-center justify-center bg-gray-50 overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                                    <span id="text_act4" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                        Tocar para foto
+                                    </span>
                                     <img id="preview_act4" class="hidden absolute inset-0 w-full h-full object-cover">
                                 </div>
                             </div>
@@ -265,18 +296,20 @@
             </section>
 
             <!-- FIRMA -->
-            <section class="bg-white p-4 rounded-lg shadow">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-blue-800">5. Firma del Prevencionista</h2>
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">5. Firma del Prevencionista</h2>
                 <div class="mb-2">
                     <canvas id="signature-pad" class="signature-pad"></canvas>
                 </div>
-                <div class="flex justify-end">
-                    <button type="button" onclick="signaturePad.clear()" class="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded shadow hover:bg-gray-300">Borrar Firma</button>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-xs text-gray-500">Firma dentro del recuadro blanco</span>
+                    <button type="button" onclick="signaturePad.clear()" class="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 font-semibold">Limpiar Firma</button>
                 </div>
             </section>
 
             <!-- BOTÓN GENERAR -->
-            <button type="button" onclick="generarPDF()" class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8">
+            <button type="button" onclick="generarPDF()" class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8 flex justify-center items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 Generar y Descargar PDF
             </button>
 
@@ -286,17 +319,20 @@
     <!-- ========================================== -->
     <!-- PLANTILLA OCULTA PARA GENERACIÓN DEL PDF   -->
     <!-- ========================================== -->
-    <!-- Se oculta empujándolo fuera de la pantalla visual para que html2pdf lo pueda procesar -->
-    <div id="pdf-wrapper" style="position: absolute; left: -9999px; top: 0;">
+    <div id="pdf-wrapper">
         <div id="pdf-template">
-            <!-- Header del documento -->
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">SICE</div>
-                <div style="text-align: center; flex-grow: 1;">
-                    <h2 style="margin: 0; font-size: 16px;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD OCUPACIONAL</h2>
-                    <p style="margin: 0; font-size: 12px; color: #4b5563;">Reporte Diario de Actividades</p>
+            <!-- Header del documento con los Logos -->
+            <div class="pdf-section" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 15px; margin-bottom: 25px;">
+                <!-- Logo SICE -->
+                <img src="logo-sice.png" alt="SICE" crossorigin="anonymous" style="height: 45px; width: 140px; object-fit: contain;">
+                
+                <div style="text-align: center; flex-grow: 1; padding: 0 15px;">
+                    <h2 style="margin: 0; font-size: 15px; font-weight: bold; color: #1e3a8a;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD OCUPACIONAL</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 13px; color: #4b5563; text-transform: uppercase;">Reporte Diario de Actividades</p>
                 </div>
-                <div style="font-weight: bold; font-size: 20px; color: #1e3a8a;">EFE</div>
+                
+                <!-- Logo EFE -->
+                <img src="logo-efe.png" alt="EFE" crossorigin="anonymous" style="height: 45px; width: 140px; object-fit: contain;">
             </div>
 
             <!-- Datos Principales -->
@@ -325,11 +361,11 @@
                         </tr>
                         <tr>
                             <th>Trabajos realizados</th>
-                            <td id="pdf-trabajos"></td>
+                            <td id="pdf-trabajos" style="white-space: pre-wrap;"></td>
                         </tr>
                         <tr>
-                            <th>Observaciones Prevención</th>
-                            <td id="pdf-observaciones"></td>
+                            <th>Observaciones de Prevención</th>
+                            <td id="pdf-observaciones" style="white-space: pre-wrap;"></td>
                         </tr>
                     </tbody>
                 </table>
@@ -353,11 +389,11 @@
 
             <!-- Dotación -->
             <div class="pdf-section">
-                <div class="pdf-title">DOTACIÓN Y RECURSOS</div>
+                <div class="pdf-title text-blue-900 border-blue-900">DOTACIÓN Y RECURSOS</div>
                 <table class="pdf-table">
                     <thead>
                         <tr>
-                            <th style="width: 25%">Ítem</th>
+                            <th style="width: 30%">Ítem</th>
                             <th style="width: 15%; text-align: center;">Cantidad</th>
                             <th>Desglose / Observaciones</th>
                         </tr>
@@ -382,38 +418,38 @@
                 </table>
             </div>
 
-            <!-- Firma (Forzada a no cortarse) -->
-            <div class="pdf-section" style="margin-top: 30px; text-align: center;">
-                <div style="width: 250px; margin: 0 auto; border-bottom: 1px solid #000; height: 120px; display: flex; align-items: flex-end; justify-content: center;">
-                    <img id="pdf-firma-img" src="" style="max-height: 100px; display: none;">
+            <!-- Firma -->
+            <div class="pdf-section" style="margin-top: 40px; text-align: center;">
+                <div style="width: 250px; margin: 0 auto; border-bottom: 1px solid #000; height: 120px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 5px;">
+                    <img id="pdf-firma-img" src="" style="max-height: 110px; display: none;">
                 </div>
-                <p style="margin-top: 5px; font-weight: bold; font-size: 14px;" id="pdf-firma-nombre"></p>
-                <p style="font-size: 12px;">Prevencionista de Riesgos SICE</p>
+                <p style="margin-top: 8px; font-weight: bold; font-size: 14px; text-transform: uppercase;" id="pdf-firma-nombre"></p>
+                <p style="font-size: 12px; color: #4b5563;">PREVENCIONISTA DE RIESGOS SICE</p>
             </div>
 
-            <!-- Evidencia Fotográfica (Nueva página recomendada) -->
-            <div class="pdf-section" style="page-break-before: always; margin-top: 20px;">
-                <div class="pdf-title">EVIDENCIA FOTOGRÁFICA - DOCUMENTACIÓN</div>
-                <div class="pdf-image-grid" style="margin-bottom: 20px;">
+            <!-- Evidencia Fotográfica (Forzamos a que salte a la siguiente página) -->
+            <div class="pdf-section" style="page-break-before: always; padding-top: 20px;">
+                <div class="pdf-title text-blue-900 border-blue-900 mb-6">EVIDENCIA FOTOGRÁFICA - DOCUMENTACIÓN</div>
+                <div class="pdf-image-grid" style="margin-bottom: 30px;">
                     <div class="pdf-img-container">
                         <img id="pdf-img-ast" src="" alt="Sin imagen">
-                        <div class="pdf-img-label">AST</div>
+                        <div class="pdf-img-label">1. AST</div>
                     </div>
                     <div class="pdf-img-container">
                         <img id="pdf-img-charla" src="" alt="Sin imagen">
-                        <div class="pdf-img-label">Charla Operacional 5 Minutos</div>
+                        <div class="pdf-img-label">2. Charla Operacional 5 Minutos</div>
                     </div>
                     <div class="pdf-img-container">
                         <img id="pdf-img-chk1" src="" alt="Sin imagen">
-                        <div class="pdf-img-label">Check List 1</div>
+                        <div class="pdf-img-label">3. Check List 1</div>
                     </div>
                     <div class="pdf-img-container">
                         <img id="pdf-img-chk2" src="" alt="Sin imagen">
-                        <div class="pdf-img-label">Check List 2</div>
+                        <div class="pdf-img-label">4. Check List 2</div>
                     </div>
                 </div>
 
-                <div class="pdf-title">EVIDENCIA FOTOGRÁFICA - ACTIVIDADES</div>
+                <div class="pdf-title text-blue-900 border-blue-900 mb-6 mt-8">EVIDENCIA FOTOGRÁFICA - ACTIVIDADES</div>
                 <div class="pdf-image-grid">
                     <div class="pdf-img-container">
                         <img id="pdf-img-act1" src="" alt="Sin imagen">
@@ -438,7 +474,7 @@
     </div>
 
     <script>
-        // Objeto global para guardar las imágenes en base64
+        // Objeto global para guardar las imágenes seleccionadas
         const imagenesCargadas = {
             ast: '', charla: '', chk1: '', chk2: '',
             act1: '', act2: '', act3: '', act4: ''
@@ -448,22 +484,21 @@
         const canvas = document.getElementById('signature-pad');
         const signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255, 255, 255)',
-            penColor: 'rgb(0, 0, 128)' // Azul oscuro
+            penColor: 'rgb(0, 0, 128)' // Azul oscuro formal
         });
 
-        // Ajustar el canvas al tamaño del contenedor en dispositivos móviles
+        // Ajustar el canvas al tamaño de la pantalla
         function resizeCanvas() {
             const ratio =  Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             canvas.getContext("2d").scale(ratio, ratio);
-            signaturePad.clear(); // Limpia al redimensionar para evitar distorsión
+            signaturePad.clear(); 
         }
         window.addEventListener("resize", resizeCanvas);
-        // Llamar tras cargar la página
         setTimeout(resizeCanvas, 100); 
 
-        // Función para leer imagen seleccionada y mostrar vista previa
+        // Leer imagen y mostrar vista previa
         function previewImage(event, previewId) {
             const input = event.target;
             const file = input.files[0];
@@ -471,16 +506,13 @@
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                // Mostrar vista previa en el formulario
                 const imgElement = document.getElementById(previewId);
                 imgElement.src = e.target.result;
                 imgElement.classList.remove('hidden');
                 
-                // Ocultar el texto de "+ Tocar para foto"
                 const textElementId = input.id.replace('foto_', 'text_');
                 document.getElementById(textElementId).classList.add('hidden');
 
-                // Guardar en variable global para el PDF
                 const key = input.id.replace('foto_', '');
                 imagenesCargadas[key] = e.target.result;
             }
@@ -499,26 +531,24 @@
             const minutos = String(fechaObj.getMinutes()).padStart(2, '0');
             const ampm = horas >= 12 ? 'PM' : 'AM';
             horas = horas % 12;
-            horas = horas ? horas : 12; // Hora '0' debe ser '12'
+            horas = horas ? horas : 12; 
             const horasStr = String(horas).padStart(2, '0');
 
             return `${dia}/${mes}/${año}; ${horasStr}:${minutos} ${ampm}`;
         }
 
-        // Función principal: Recopilar datos y generar PDF
+        // FUNCIÓN PRINCIPAL: Generar PDF
         function generarPDF() {
-            // Validaciones básicas
             const lugar = document.getElementById('lugar').value;
             const fechaInput = document.getElementById('fecha').value;
             if(!fechaInput || !lugar) {
-                alert("Por favor, ingresa al menos la Fecha y el Lugar Específico.");
+                alert("Por favor, complete al menos la Fecha y el Lugar Específico antes de generar el documento.");
                 return;
             }
 
-            // Mostrar Loader
             document.getElementById('loader').style.display = 'flex';
 
-            // 1. Traspasar datos del formulario a la plantilla HTML oculta
+            // 1. Traspasar datos a la plantilla
             document.getElementById('pdf-fecha').innerText = formatearFecha(fechaInput);
             document.getElementById('pdf-lugar').innerText = lugar;
             document.getElementById('pdf-trabajos').innerText = document.getElementById('trabajos').value || "Sin descripción.";
@@ -531,10 +561,8 @@
 
             document.getElementById('pdf-ito-cant').innerText = document.getElementById('ito_cant').value;
             document.getElementById('pdf-ito-desc').innerText = document.getElementById('ito_desc').value;
-            
             document.getElementById('pdf-sice-cant').innerText = document.getElementById('sice_cant').value;
             document.getElementById('pdf-sice-desc').innerText = document.getElementById('sice_desc').value;
-            
             document.getElementById('pdf-camioneta-cant').innerText = document.getElementById('camioneta_cant').value;
             document.getElementById('pdf-camioneta-desc').innerText = document.getElementById('camioneta_desc').value;
 
@@ -547,7 +575,7 @@
                 firmaImg.style.display = 'none';
             }
 
-            // 3. Traspasar Imágenes (ocultar las que no se subieron para que no queden recuadros rotos)
+            // 3. Traspasar Imágenes de Evidencia
             const mapImagenes = [
                 { key: 'ast', pdfId: 'pdf-img-ast' }, { key: 'charla', pdfId: 'pdf-img-charla' },
                 { key: 'chk1', pdfId: 'pdf-img-chk1' }, { key: 'chk2', pdfId: 'pdf-img-chk2' },
@@ -559,14 +587,25 @@
                 const imgElement = document.getElementById(imgData.pdfId);
                 if (imagenesCargadas[imgData.key]) {
                     imgElement.src = imagenesCargadas[imgData.key];
-                    imgElement.style.display = 'inline-block';
+                    imgElement.style.display = 'block';
                 } else {
-                    imgElement.style.display = 'none'; // Oculta la imagen si no hay fuente
-                    imgElement.parentNode.innerHTML += "<span style='font-size: 10px; color: gray;'>[Sin imagen]</span>";
+                    imgElement.style.display = 'none'; 
+                    // Mostramos un recuadro gris si no hay foto
+                    imgElement.parentElement.style.backgroundColor = "#e5e7eb";
+                    imgElement.parentElement.innerHTML = "<div style='height: 220px; display:flex; align-items:center; justify-content:center; color: #6b7280; font-size: 12px;'>Sin Fotografía</div>" + "<div class='pdf-img-label'>" + imgElement.nextElementSibling.innerText + "</div>";
                 }
             });
 
-            // 4. Configurar y generar PDF
+            // --- CORRECCIÓN CLAVE PARA EL BUG DE HTML2CANVAS EN CELULARES ---
+            // Guardar posición actual y subir al tope de la página
+            const currentScroll = window.scrollY;
+            window.scrollTo(0, 0);
+
+            // Preparar el contenedor del PDF para que se renderice visualmente bien en el momento de la captura
+            const wrapper = document.getElementById('pdf-wrapper');
+            wrapper.style.visibility = 'visible';
+            wrapper.style.zIndex = '9999';
+
             const elemento = document.getElementById('pdf-template');
             
             // Generar un nombre de archivo dinámico
@@ -574,27 +613,39 @@
             const fechaStr = `${dateObj.getFullYear()}${String(dateObj.getMonth()+1).padStart(2,'0')}${String(dateObj.getDate()).padStart(2,'0')}`;
             const fileName = `Reporte_Diario_SICE_${lugar.replace(/\s+/g, '')}_${fechaStr}.pdf`;
 
+            // Configuración estricta para evitar cortes
             const opciones = {
-                margin:       [10, 10, 10, 10], // top, left, bottom, right
+                margin:       [10, 10, 10, 10], // top, left, bottom, right (en mm)
                 filename:     fileName,
-                image:        { type: 'jpeg', quality: 0.85 }, // Comprimir un poco para evitar PDFs gigantes
-                html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+                image:        { type: 'jpeg', quality: 0.95 }, 
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true, 
+                    scrollY: 0, // Fuerza la captura desde el top: 0
+                    windowWidth: 800 // Fuerza un ancho de ventana consistente
+                },
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            // Pequeña pausa para asegurar que el DOM se actualizó antes de capturar
+            // Pequeño delay para asegurar que las imágenes y el scroll se hayan aplicado
             setTimeout(() => {
                 html2pdf().set(opciones).from(elemento).save().then(() => {
-                    // Ocultar Loader cuando termina
+                    // Restaurar todo a la normalidad
+                    wrapper.style.visibility = 'hidden';
+                    wrapper.style.zIndex = '-100';
+                    window.scrollTo(0, currentScroll); // Devolver al usuario a donde estaba
                     document.getElementById('loader').style.display = 'none';
                     alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
                 }).catch(err => {
                     console.error("Error al generar PDF:", err);
+                    wrapper.style.visibility = 'hidden';
+                    wrapper.style.zIndex = '-100';
+                    window.scrollTo(0, currentScroll);
                     document.getElementById('loader').style.display = 'none';
-                    alert('Ocurrió un error al generar el PDF.');
+                    alert('Ocurrió un error al generar el PDF. Intenta nuevamente.');
                 });
-            }, 500);
+            }, 800);
         }
     </script>
 </body>
