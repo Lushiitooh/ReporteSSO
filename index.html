@@ -21,17 +21,25 @@
 
         /* ── PDF wrapper ── */
         #pdf-wrapper {
-            visibility: hidden;
-            position: absolute;
-            left: -9999px;
+            position: fixed;
             top: 0;
+            left: 0;
+            width: 681px;
+            overflow: hidden;
+            height: 0;            /* ocupa 0 altura → invisible pero con ancho real */
             z-index: -100;
+            pointer-events: none;
+        }
+        #pdf-wrapper.activo {
+            height: auto;         /* cuando se activa, el contenido tiene layout real */
+            z-index: 9999;
         }
         #pdf-template {
             background: white;
-            padding: 0;            /* Sin padding interno — los márgenes los pone jsPDF */
+            padding: 0;
             color: #000;
-            width: 180mm;          /* A4 (210mm) − 15mm izq − 15mm der = 180mm exactos */
+            /* 210mm A4 − 15mm izq − 15mm der = 180mm ≈ 680px a 96dpi */
+            width: 680px;
             box-sizing: border-box;
             font-family: Arial, sans-serif;
         }
@@ -783,40 +791,37 @@
         const wrapper  = document.getElementById('pdf-wrapper');
         const elemento = document.getElementById('pdf-template');
 
-        wrapper.style.visibility = 'visible';
-        wrapper.style.zIndex     = '9999';
+        /* Activamos el wrapper para que tenga layout real antes de capturar */
+        wrapper.classList.add('activo');
 
-        /* windowWidth dinámico: lee el ancho real del template una vez visible.
-           Así html2canvas nunca recorta el lado derecho.                        */
-        const templatePx = elemento.scrollWidth;
-
-        const opciones = {
-            margin:      [15, 15, 15, 15],   /* 15 mm en cada lado → contenido 180 mm */
-            filename:    fileName,
-            image:       { type: 'jpeg', quality: 0.93 },
-            html2canvas: {
-                scale:       2,
-                useCORS:     true,
-                scrollY:     0,
-                windowWidth: templatePx      /* coincide exactamente con el template */
-            },
-            pagebreak: { mode: ['css', 'legacy'] },
-            jsPDF:     { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-
+        /* Esperamos a que el navegador procese el reflow completo */
         setTimeout(() => {
-            html2pdf().set(opciones).from(document.getElementById('pdf-template')).save()
+            const templatePx = elemento.scrollWidth || 681;
+
+            const opciones = {
+                margin:      [15, 15, 15, 15],
+                filename:    fileName,
+                image:       { type: 'jpeg', quality: 0.93 },
+                html2canvas: {
+                    scale:       2,
+                    useCORS:     true,
+                    scrollY:     0,
+                    windowWidth: templatePx
+                },
+                pagebreak: { mode: ['css', 'legacy'] },
+                jsPDF:     { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opciones).from(elemento).save()
                 .then(() => {
-                    wrapper.style.visibility = 'hidden';
-                    wrapper.style.zIndex     = '-100';
+                    wrapper.classList.remove('activo');
                     window.scrollTo(0, scrollActual);
                     document.getElementById('loader').style.display = 'none';
                     alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
                 })
                 .catch(err => {
                     console.error(err);
-                    wrapper.style.visibility = 'hidden';
-                    wrapper.style.zIndex     = '-100';
+                    wrapper.classList.remove('activo');
                     window.scrollTo(0, scrollActual);
                     document.getElementById('loader').style.display = 'none';
                     alert('Error al generar el PDF. Intenta nuevamente.');
