@@ -197,10 +197,43 @@
                         </div>
                     </div>
 
+                    <!-- ── EMPRESA MANDANTE ── -->
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Empresa Mandante</label>
+                        <select id="mandante" required onchange="onMandanteChange()"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                            <option value="">Seleccione empresa mandante...</option>
+                            <option value="EFE">EFE TRENES DE CHILE</option>
+                            <option value="METRO">METRO DE SANTIAGO S.A.</option>
+                        </select>
+                    </div>
+
+                    <!-- ── CONTRATO (cambia según mandante) ── -->
+                    <div id="bloque-contrato-efe" class="hidden">
+                        <label class="block text-sm font-medium mb-1">Contrato</label>
+                        <input type="text" readonly
+                            value='"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE'
+                            class="w-full border border-gray-300 p-2 rounded bg-gray-100 text-gray-500 text-sm">
+                    </div>
+
+                    <div id="bloque-contrato-metro" class="hidden">
+                        <label class="block text-sm font-medium mb-1">Contrato</label>
+                        <select id="contrato_metro" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                            <option value="">Seleccione contrato...</option>
+                            <option>Suministro del Sistema de Comunicaciones, Extensión Línea 3.</option>
+                            <option>Suministro del Sistema de Comunicaciones, Extensión Línea 2.</option>
+                            <option>Suministro del Sistema de Comunicaciones, Extensión Línea 6.</option>
+                            <option>Suministro de Puertas Bidireccionales de Control en 7 Estaciones de la Red de Metro.</option>
+                        </select>
+                    </div>
+
+                    <!-- ── LUGAR ESPECÍFICO (cambia según mandante) ── -->
                     <div>
                         <label class="block text-sm font-medium mb-1">Lugar Específico</label>
-                        <select id="lugar" required class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                            <option value="">Seleccione un lugar...</option>
+
+                        <!-- EFE: lista desplegable -->
+                        <select id="lugar_efe" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
+                            <option value="">Seleccione una estación...</option>
                             <option>Estación Central</option>
                             <option>Estación San Bernardo</option>
                             <option>Estación Rancagua</option>
@@ -216,6 +249,15 @@
                             <option>Dependencias SICE</option>
                             <option>Local Técnico</option>
                         </select>
+
+                        <!-- METRO: texto libre -->
+                        <input type="text" id="lugar_metro" placeholder='Ej: Metro San Joaquín L5'
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
+
+                        <!-- Estado inicial -->
+                        <p id="lugar_placeholder" class="text-sm text-gray-400 p-2 border border-dashed border-gray-300 rounded text-center">
+                            Seleccione primero la Empresa Mandante
+                        </p>
                     </div>
 
                     <div>
@@ -243,6 +285,8 @@
                             <option>Juan Carlos Rojas</option>
                             <option>Francisco Gárate</option>
                             <option>Milton González</option>
+                            <option>Andres Traslaviña</option>
+                            <option>Guillermo Osorio</option>
                         </select>
                     </div>
                     <div>
@@ -252,6 +296,9 @@
                             <option>Patricio Pau</option>
                             <option>Daniel Alarcón</option>
                             <option>Gonzalo Núñez</option>
+                            <option>Valeria Huichipan</option>
+                            <option>Luis Sepúlveda</option>
+                            <option>Alex Lorca</option>
                         </select>
                     </div>
                 </div>
@@ -369,7 +416,8 @@
                     Reporte Diario de Actividades
                 </div>
             </div>
-            <img src="logo-efe.png" alt="EFE" crossorigin="anonymous"
+            <!-- Logo derecho: cambia entre EFE y Metro -->
+            <img id="pdf-logo-mandante" src="logo-efe.png" alt="Mandante" crossorigin="anonymous"
                 style="height:42px; width:130px; object-fit:contain;">
         </div>
 
@@ -378,12 +426,11 @@
             <table class="pdf-table">
                 <tbody>
                     <tr><th>Empresa</th><td>SICE AGENCIA CHILE S.A.</td></tr>
-                    <tr><th>Empresa Mandante</th><td>EFE TRENES DE CHILE</td></tr>
+                    <tr><th>Empresa Mandante</th><td id="pdf-mandante"></td></tr>
                     <tr><th>Fecha de actividades</th><td id="pdf-fecha"></td></tr>
                     <tr><th>Horario de ingreso</th><td id="pdf-hora-ingreso"></td></tr>
                     <tr><th>Horario de salida</th><td id="pdf-hora-salida"></td></tr>
-                    <tr><th>Contrato</th>
-                        <td>"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE</td></tr>
+                    <tr><th>Contrato</th><td id="pdf-contrato"></td></tr>
                     <tr><th>Lugar específico</th><td id="pdf-lugar"></td></tr>
                     <tr><th>Trabajos realizados</th><td id="pdf-trabajos" style="white-space:pre-wrap;"></td></tr>
                     <tr><th>Observaciones de Prevención</th><td id="pdf-observaciones" style="white-space:pre-wrap;"></td></tr>
@@ -588,7 +635,43 @@
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 100);
 
-    /* ── Preview de imágenes ── */
+    /* ══════════════════════════════════════
+       LÓGICA EMPRESA MANDANTE
+       ══════════════════════════════════════ */
+    function onMandanteChange() {
+        const val = document.getElementById('mandante').value;
+
+        // Bloques contrato
+        document.getElementById('bloque-contrato-efe').classList.toggle('hidden',   val !== 'EFE');
+        document.getElementById('bloque-contrato-metro').classList.toggle('hidden', val !== 'METRO');
+
+        // Lugar
+        document.getElementById('lugar_efe').classList.toggle('hidden',         val !== 'EFE');
+        document.getElementById('lugar_metro').classList.toggle('hidden',        val !== 'METRO');
+        document.getElementById('lugar_placeholder').classList.toggle('hidden',  val !== '');
+    }
+
+    /* Helpers para leer valores dinámicos */
+    function getLugar() {
+        const v = document.getElementById('mandante').value;
+        if (v === 'EFE')   return document.getElementById('lugar_efe').value;
+        if (v === 'METRO') return document.getElementById('lugar_metro').value.trim();
+        return '';
+    }
+    function getContrato() {
+        const v = document.getElementById('mandante').value;
+        if (v === 'EFE')   return '"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE';
+        if (v === 'METRO') return document.getElementById('contrato_metro').value;
+        return '';
+    }
+    function getMandanteLabel() {
+        const v = document.getElementById('mandante').value;
+        if (v === 'EFE')   return 'EFE TRENES DE CHILE';
+        if (v === 'METRO') return 'METRO DE SANTIAGO S.A.';
+        return '';
+    }
+
+
     function previewImage(event, previewId, key) {
         const file = event.target.files[0];
         if (!file) return;
@@ -636,16 +719,25 @@
        GENERAR PDF
        ══════════════════════════════════════ */
     function generarPDF() {
-        const lugar   = document.getElementById('lugar').value;
-        const fechaB  = document.getElementById('fecha_base').value;
-        const hIng    = document.getElementById('hora_ingreso').value;
+        const lugar    = getLugar();
+        const mandante = document.getElementById('mandante').value;
+        const fechaB   = document.getElementById('fecha_base').value;
+        const hIng     = document.getElementById('hora_ingreso').value;
 
-        if (!fechaB || !lugar || !hIng) {
-            alert('Por favor, complete la Fecha, Hora de Ingreso y Lugar antes de generar.');
+        if (!mandante || !fechaB || !lugar || !hIng) {
+            alert('Por favor, complete la Empresa Mandante, Fecha, Hora de Ingreso y Lugar antes de generar.');
             return;
         }
 
         document.getElementById('loader').style.display = 'flex';
+
+        /* Logo mandante en PDF */
+        document.getElementById('pdf-logo-mandante').src =
+            mandante === 'METRO' ? 'logo-metro.png' : 'logo-efe.png';
+
+        /* Empresa Mandante y Contrato */
+        document.getElementById('pdf-mandante').innerText = getMandanteLabel();
+        document.getElementById('pdf-contrato').innerText = getContrato();
 
         /* Traspasar datos de texto */
         document.getElementById('pdf-fecha').innerText         = formatearFecha(fechaB);
