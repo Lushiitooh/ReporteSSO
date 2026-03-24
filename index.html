@@ -503,13 +503,13 @@
         <div class="pdf-section" style="page-break-before:always; padding-top:18px;">
             <div class="pdf-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN</div>
 
-            <!-- Fila 1: AST + Charla (NO se cortan juntas) -->
+            <!-- Fila 1: AST/HCR + Charla -->
             <div class="pdf-photo-row">
                 <div class="pdf-photo-cell">
                     <div id="pdf-wrap-ast">
                         <img id="pdf-img-ast" src="" alt="">
                     </div>
-                    <div class="pdf-img-label">1. AST</div>
+                    <div class="pdf-img-label" id="pdf-label-ast">1. AST</div>
                 </div>
                 <div class="pdf-photo-cell">
                     <div id="pdf-wrap-charla">
@@ -602,7 +602,7 @@
             const div = document.createElement('div');
             div.className = 'text-center';
             div.innerHTML = `
-                <label class="block text-xs font-semibold mb-1 truncate">${cfg.label}</label>
+                <label class="block text-xs font-semibold mb-1 truncate" id="label_${cfg.id}_ui">${cfg.label}</label>
                 <input type="file" id="foto_${cfg.id}" accept="image/*" class="hidden"
                     onchange="previewImage(event,'preview_${cfg.id}','${cfg.id}')">
                 <div onclick="document.getElementById('foto_${cfg.id}').click()"
@@ -622,6 +622,21 @@
     }
     crearGrilla('doc', 'grid-docs');
     crearGrilla('act', 'grid-acts');
+
+    // Función para actualizar el label de AST/HCR en la interfaz y en el PDF
+    function actualizarLabelAST() {
+        const mandante = document.getElementById('mandante').value;
+        const labelUI = document.getElementById('label_ast_ui');
+        const labelPDF = document.getElementById('pdf-label-ast');
+
+        if (mandante === 'EFE') {
+            if (labelUI) labelUI.innerText = '1. HCR';
+            if (labelPDF) labelPDF.innerText = '1. HCR';
+        } else {
+            if (labelUI) labelUI.innerText = '1. AST';
+            if (labelPDF) labelPDF.innerText = '1. AST';
+        }
+    }
 
     /* ── Firma ── */
     const canvas = document.getElementById('signature-pad');
@@ -653,6 +668,9 @@
         document.getElementById('lugar_efe').classList.toggle('hidden',         val !== 'EFE');
         document.getElementById('lugar_metro').classList.toggle('hidden',        val !== 'METRO');
         document.getElementById('lugar_placeholder').classList.toggle('hidden',  val !== '');
+
+        // Actualizar label AST/HCR
+        actualizarLabelAST();
     }
 
     /* Helpers para leer valores dinámicos */
@@ -712,10 +730,22 @@
         if (imagenesCargadas[key]) {
             img.src = imagenesCargadas[key];
             img.style.display = 'block';
+            // Limpiar placeholder si existe
+            if (wrap.querySelector('.pdf-no-photo')) {
+                wrap.innerHTML = '';
+                wrap.appendChild(img);
+                img.style.display = 'block';
+            }
         } else {
             img.style.display = 'none';
-            wrap.innerHTML =
-                `<div class="pdf-no-photo">Sin Fotografía</div>`;
+            // Si ya hay un placeholder, no duplicar
+            if (!wrap.querySelector('.pdf-no-photo')) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'pdf-no-photo';
+                placeholder.innerText = 'Sin Fotografía';
+                wrap.innerHTML = '';
+                wrap.appendChild(placeholder);
+            }
         }
     }
 
@@ -734,6 +764,9 @@
         }
 
         document.getElementById('loader').style.display = 'flex';
+
+        // Actualizar label AST/HCR por si acaso (seguridad)
+        actualizarLabelAST();
 
         /* Logo mandante en PDF */
         document.getElementById('pdf-logo-mandante').src =
