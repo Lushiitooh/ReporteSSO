@@ -90,9 +90,13 @@
             font-weight: bold;
         }
 
-        /* ── PDF: Página de foto completa ── */
+        /* ── PDF: Página de foto completa (Ajustada para evitar saltos) ── */
         .pdf-full-photo-page {
-            height: 1010px;
+            page-break-before: always;
+            break-before: page;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            height: 950px; /* Altura óptima para una página A4 con márgenes de 15mm */
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -830,8 +834,8 @@
                         useCORS: true,
                         scrollY: 0,
                         scrollX: 0,
-                        windowWidth: 800, // Fuerza un viewport ancho para evitar recortes
-                        width: 681 // Especifica el ancho exacto
+                        windowWidth: 800,
+                        width: 681
                     },
                     pagebreak: { mode: ['css', 'legacy'] },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
