@@ -24,15 +24,12 @@
             touch-action: none;
         }
 
-        /* ── PDF wrapper ──
-           Truco: position:absolute + top negativo (NO left negativo).
-           Con left:-9999px el navegador colapsa el ancho a 0.
-           Con top:-9999px el ancho se mantiene real y html2canvas lo captura bien. */
+        /* ── PDF wrapper ── */
         #pdf-wrapper {
             position: absolute;
             top: -99999px;
             left: 0;
-            width: 681px;
+            width: 681px !important;
             z-index: -1;
             pointer-events: none;
         }
@@ -41,9 +38,17 @@
             background: white;
             padding: 0;
             color: #000;
-            width: 681px;
+            width: 681px !important;
             box-sizing: border-box;
             font-family: Arial, sans-serif;
+        }
+
+        /* ── Páginas del PDF ── */
+        .pdf-page {
+            position: relative;
+            width: 681px !important;
+            background: #ffffff;
+            box-sizing: border-box;
         }
 
         /* ── Secciones del PDF ── */
@@ -77,7 +82,6 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
             max-width: 0;
-            /* Fuerza que las celdas respeten el ancho de tabla */
         }
 
         .pdf-table th {
@@ -86,14 +90,9 @@
             font-weight: bold;
         }
 
-        /* ── PDF: Página de foto completa (una foto por hoja) ── */
+        /* ── PDF: Página de foto completa ── */
         .pdf-full-photo-page {
-            page-break-before: always;
-            /* Nueva hoja antes de cada foto */
-            break-before: page;
-            padding-top: 12px;
-            height: 980px;
-            /* Ocupa casi toda la hoja A4 */
+            height: 1010px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -114,7 +113,6 @@
 
         .pdf-full-photo-page .photo-container {
             flex: 1;
-            /* Ocupa TODO el espacio restante */
             border: 1px solid #d1d5db;
             background: #f9fafb;
             display: flex;
@@ -122,14 +120,12 @@
             justify-content: center;
             overflow: hidden;
             min-height: 0;
-            /* Crítico para que flex no se desborde */
         }
 
         .pdf-full-photo-page .photo-container img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            /* Muestra completa sin recortar */
             display: block;
         }
 
@@ -172,14 +168,12 @@
 
 <body class="text-gray-800 antialiased pb-20">
 
-    <!-- Loader -->
     <div id="loader">
         <div class="spinner"></div>
         <p class="font-bold text-xl">Generando PDF...</p>
         <p class="text-sm mt-2 text-gray-300">Ajustando el documento, por favor espera.</p>
     </div>
 
-    <!-- Header -->
     <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
         <div>
             <h1 class="text-xl font-bold">Reporte Diario SSO</h1>
@@ -190,17 +184,12 @@
     <main class="max-w-md mx-auto p-4 space-y-6">
         <form id="report-form" class="space-y-6">
 
-            <!-- 1. INFORMACIÓN GENERAL -->
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">1. Información General</h2>
 
                 <div class="space-y-4">
-
-                    <!-- ── FECHA + HORARIOS (centrado) ── -->
                     <div>
                         <label class="block text-sm font-medium mb-2 text-center">Fecha y Horario de Actividad</label>
-
-                        <!-- Fecha base (centrada) -->
                         <div class="flex justify-center mb-3">
                             <div class="w-full max-w-xs">
                                 <label class="block text-xs text-gray-500 text-center mb-1">Fecha</label>
@@ -208,8 +197,6 @@
                                     class="w-full border border-gray-300 p-2 rounded text-center focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             </div>
                         </div>
-
-                        <!-- Ingreso / Salida en dos columnas centradas -->
                         <div class="flex gap-4 justify-center">
                             <div class="flex-1 max-w-[10rem]">
                                 <label class="block text-xs text-gray-500 text-center mb-1">Hora Ingreso</label>
@@ -224,7 +211,6 @@
                         </div>
                     </div>
 
-                    <!-- ── EMPRESA MANDANTE ── -->
                     <div>
                         <label class="block text-sm font-medium mb-1">Empresa Mandante</label>
                         <select id="mandante" required onchange="onMandanteChange()"
@@ -235,7 +221,6 @@
                         </select>
                     </div>
 
-                    <!-- ── CONTRATO (cambia según mandante) ── -->
                     <div id="bloque-contrato-efe" class="hidden">
                         <label class="block text-sm font-medium mb-1">Contrato</label>
                         <input type="text" readonly
@@ -251,19 +236,14 @@
                             <option>Suministro del Sistema de Comunicaciones, Extensión Línea 3.</option>
                             <option>Suministro del Sistema de Comunicaciones, Extensión Línea 2.</option>
                             <option>Suministro del Sistema de Comunicaciones, Extensión Línea 6.</option>
-                            <option>Suministro de Puertas Bidireccionales de Control en 7 Estaciones de la Red de Metro.
-                            </option>
-                            <option>Mantenimiento de Comunicaciones Linea 6 y Linea 3.</option>
-                            <option>Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7
-                                de Metro S.A</option>
+                            <option>Suministro de Puertas Bidireccionales de Control en 7 Estaciones de la Red de Metro.</option>
+                            <option>Mantenimiento de Comunicaciones Línea 6 y Línea 3.</option>
+                            <option>Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7 de Metro S.A.</option>
                         </select>
                     </div>
 
-                    <!-- ── LUGAR ESPECÍFICO (cambia según mandante) ── -->
                     <div>
                         <label class="block text-sm font-medium mb-1">Lugar Específico</label>
-
-                        <!-- EFE: lista desplegable -->
                         <select id="lugar_efe"
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
                             <option value="">Seleccione una estación...</option>
@@ -282,12 +262,8 @@
                             <option>Dependencias SICE</option>
                             <option>Local Técnico</option>
                         </select>
-
-                        <!-- METRO: texto libre -->
                         <input type="text" id="lugar_metro" placeholder='Ej: Metro San Joaquín L5'
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
-
-                        <!-- Estado inicial -->
                         <p id="lugar_placeholder"
                             class="text-sm text-gray-400 p-2 border border-dashed border-gray-300 rounded text-center">
                             Seleccione primero la Empresa Mandante
@@ -309,7 +285,6 @@
                 </div>
             </section>
 
-            <!-- 2. PERSONAL -->
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">2. Personal a Cargo</h2>
                 <div class="space-y-4">
@@ -321,13 +296,13 @@
                             <option>Juan Carlos Rojas</option>
                             <option>Francisco Gárate</option>
                             <option>Milton González</option>
-                            <option>Andres Traslaviña</option>
+                            <option>Andrés Traslaviña</option>
                             <option>Guillermo Osorio</option>
-                            <option>Felipe Galvez</option>
-                            <option>Jose Villanueva</option>
-                            <option>Alvaro Gonzalez</option>
-                            <option>Fabian Collao</option>
-                            <option>Cesar Gonzalez</option>
+                            <option>Felipe Gálvez</option>
+                            <option>José Villanueva</option>
+                            <option>Álvaro González</option>
+                            <option>Fabián Collao</option>
+                            <option>César González</option>
                             <option>Francisco Jaramillo</option>
                             <option>Censorino Rojas</option>
                         </select>
@@ -351,7 +326,6 @@
                 </div>
             </section>
 
-            <!-- 3. DOTACIÓN -->
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Dotación y Recursos</h2>
                 <div class="space-y-4">
@@ -403,19 +377,16 @@
                 </div>
             </section>
 
-            <!-- 4. EVIDENCIA FOTOGRÁFICA -->
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">4. Evidencia Fotográfica</h2>
                 <p class="text-xs text-gray-600 mb-4">Adjunte imágenes (galería o cámara).</p>
 
                 <div class="space-y-6">
-                    <!-- Documentación -->
                     <div>
                         <h3 class="font-bold text-sm mb-2 text-blue-800">DOCUMENTACIÓN SSO</h3>
                         <div class="grid grid-cols-2 gap-3" id="grid-docs"></div>
                     </div>
                     <hr class="border-gray-300">
-                    <!-- Actividades -->
                     <div>
                         <h3 class="font-bold text-sm mb-2 text-blue-800">ACTIVIDADES EN TERRENO</h3>
                         <div class="grid grid-cols-2 gap-3" id="grid-acts"></div>
@@ -423,7 +394,6 @@
                 </div>
             </section>
 
-            <!-- 5. FIRMA -->
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">5. Firma del Prevencionista</h2>
                 <canvas id="signature-pad" class="signature-pad"></canvas>
@@ -436,7 +406,6 @@
                 </div>
             </section>
 
-            <!-- Botón Generar -->
             <button type="button" onclick="generarPDF()"
                 class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8 flex justify-center items-center">
                 <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,14 +417,9 @@
         </form>
     </main>
 
-    <!-- ══════════════════════════════════════════
-         PLANTILLA OCULTA PARA GENERACIÓN DEL PDF
-         ══════════════════════════════════════════ -->
     <div id="pdf-wrapper">
         <div id="pdf-template">
-            <!-- Contenido con padding interno para separar del borde de página -->
             <div style="padding: 0 2mm;">
-
                 <div class="pdf-section" style="
             display:flex; justify-content:space-between; align-items:center;
             border-bottom:2px solid #1e3a8a; padding-bottom:14px; margin-bottom:22px;">
@@ -469,12 +433,10 @@
                             Reporte Diario de Actividades
                         </div>
                     </div>
-                    <!-- Logo derecho: cambia entre EFE y Metro -->
                     <img id="pdf-logo-mandante" src="logo-efe.png" alt="Mandante" crossorigin="anonymous"
                         style="height:42px; width:130px; object-fit:contain;">
                 </div>
 
-                <!-- Datos Principales -->
                 <div class="pdf-section">
                     <table class="pdf-table">
                         <tbody>
@@ -518,7 +480,6 @@
                     </table>
                 </div>
 
-                <!-- Personal -->
                 <div class="pdf-section">
                     <table class="pdf-table">
                         <tbody>
@@ -534,7 +495,6 @@
                     </table>
                 </div>
 
-                <!-- Dotación -->
                 <div class="pdf-section">
                     <div class="pdf-title">DOTACIÓN Y RECURSOS</div>
                     <table class="pdf-table">
@@ -565,7 +525,6 @@
                     </table>
                 </div>
 
-                <!-- Firma -->
                 <div class="pdf-section" style="margin-top:36px; text-align:center; page-break-inside:avoid;">
                     <div style="
                 width:260px; margin:0 auto;
@@ -580,10 +539,7 @@
                     <p style="font-size:11px; color:#4b5563;">PREVENCIONISTA DE RIESGOS SICE</p>
                 </div>
 
-                <!-- ══ EVIDENCIA FOTOGRÁFICA — UNA FOTO POR HOJA ══ -->
-
-                <!-- Foto 1: AST / HCR -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
                         <span id="pdf-label-ast" style="font-size:12px;">1. AST</span>
                     </div>
@@ -592,8 +548,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 2: Charla Operacional -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
                         <span style="font-size:12px;">2. Charla Operacional 5 Minutos</span>
                     </div>
@@ -602,8 +557,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 3: Check List 1 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
                         <span style="font-size:12px;">3. Check List 1</span>
                     </div>
@@ -612,8 +566,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 4: Check List 2 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
                         <span style="font-size:12px;">4. Check List 2</span>
                     </div>
@@ -622,8 +575,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 5: Actividad 1 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
                         <span style="font-size:12px;">Actividad 1</span>
                     </div>
@@ -632,8 +584,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 6: Actividad 2 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
                         <span style="font-size:12px;">Actividad 2</span>
                     </div>
@@ -642,8 +593,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 7: Actividad 3 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
                         <span style="font-size:12px;">Actividad 3</span>
                     </div>
@@ -652,8 +602,7 @@
                     </div>
                 </div>
 
-                <!-- Foto 8: Actividad 4 -->
-                <div class="pdf-full-photo-page">
+                <div class="pdf-page pdf-full-photo-page">
                     <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
                         <span style="font-size:12px;">Actividad 4</span>
                     </div>
@@ -662,14 +611,11 @@
                     </div>
                 </div>
 
-            </div><!-- /inner padding -->
-        </div><!-- /pdf-template -->
-    </div><!-- /pdf-wrapper -->
+            </div>
+        </div>
+    </div>
 
     <script>
-        /* ══════════════════════════════════════
-           CONFIGURACIÓN DE CAMPOS DE FOTO
-           ══════════════════════════════════════ */
         const FOTO_CONFIG = [
             { id: 'ast', label: '1. AST', tipo: 'doc' },
             { id: 'charla', label: '2. Charla 5 Min', tipo: 'doc' },
@@ -684,7 +630,6 @@
         const imagenesCargadas = {};
         FOTO_CONFIG.forEach(c => { imagenesCargadas[c.id] = ''; });
 
-        // Generar grids dinámicamente
         function crearGrilla(tipo, contenedorId) {
             const cont = document.getElementById(contenedorId);
             FOTO_CONFIG.filter(c => c.tipo === tipo).forEach(cfg => {
@@ -712,7 +657,6 @@
         crearGrilla('doc', 'grid-docs');
         crearGrilla('act', 'grid-acts');
 
-        // Función para actualizar el label de AST/HCR en la interfaz y en el PDF
         function actualizarLabelAST() {
             const mandante = document.getElementById('mandante').value;
             const labelUI = document.getElementById('label_ast_ui');
@@ -727,7 +671,6 @@
             }
         }
 
-        /* ── Firma ── */
         const canvas = document.getElementById('signature-pad');
         const signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255,255,255)',
@@ -743,26 +686,16 @@
         window.addEventListener('resize', resizeCanvas);
         setTimeout(resizeCanvas, 100);
 
-        /* ══════════════════════════════════════
-           LÓGICA EMPRESA MANDANTE
-           ══════════════════════════════════════ */
         function onMandanteChange() {
             const val = document.getElementById('mandante').value;
-
-            // Bloques contrato
             document.getElementById('bloque-contrato-efe').classList.toggle('hidden', val !== 'EFE');
             document.getElementById('bloque-contrato-metro').classList.toggle('hidden', val !== 'METRO');
-
-            // Lugar
             document.getElementById('lugar_efe').classList.toggle('hidden', val !== 'EFE');
             document.getElementById('lugar_metro').classList.toggle('hidden', val !== 'METRO');
             document.getElementById('lugar_placeholder').classList.toggle('hidden', val !== '');
-
-            // Actualizar label AST/HCR
             actualizarLabelAST();
         }
 
-        /* Helpers para leer valores dinámicos */
         function getLugar() {
             const v = document.getElementById('mandante').value;
             if (v === 'EFE') return document.getElementById('lugar_efe').value;
@@ -782,7 +715,6 @@
             return '';
         }
 
-
         function previewImage(event, previewId, key) {
             const file = event.target.files[0];
             if (!file) return;
@@ -796,7 +728,6 @@
             reader.readAsDataURL(file);
         }
 
-        /* ── Formatear hora (HH:MM → 12h AM/PM) ── */
         function formatearHora(timeValue) {
             if (!timeValue) return '—';
             const [hh, mm] = timeValue.split(':').map(Number);
@@ -805,33 +736,26 @@
             return `${String(h12).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${ampm}`;
         }
 
-        /* ── Formatear fecha DD/MM/YYYY ── */
         function formatearFecha(dateValue) {
             if (!dateValue) return '—';
             const [y, m, d] = dateValue.split('-');
             return `${d}/${m}/${y}`;
         }
 
-        /* ── Poner foto o placeholder en el PDF (plana completa) ── */
         function setFotoPdf(key) {
             const img = document.getElementById('pdf-img-' + key);
             const wrap = document.getElementById('pdf-wrap-' + key);
             if (!img || !wrap) return;
             if (imagenesCargadas[key]) {
-                // Limpiar el contenedor y poner solo la imagen
                 wrap.innerHTML = '';
                 img.src = imagenesCargadas[key];
                 img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display:block;';
                 wrap.appendChild(img);
             } else {
-                // Sin foto: mostrar placeholder centrado
                 wrap.innerHTML = '<div class="pdf-no-photo"><div style="font-size:36px; margin-bottom:8px;">📷</div><div>Sin Fotografía</div></div>';
             }
         }
 
-        /* ══════════════════════════════════════
-           GENERAR PDF
-           ══════════════════════════════════════ */
         function generarPDF() {
             const lugar = getLugar();
             const mandante = document.getElementById('mandante').value;
@@ -844,19 +768,13 @@
             }
 
             document.getElementById('loader').style.display = 'flex';
-
-            // Actualizar label AST/HCR por si acaso (seguridad)
             actualizarLabelAST();
 
-            /* Logo mandante en PDF */
             document.getElementById('pdf-logo-mandante').src =
                 mandante === 'METRO' ? 'logo-metro.png' : 'logo-efe.png';
 
-            /* Empresa Mandante y Contrato */
             document.getElementById('pdf-mandante').innerText = getMandanteLabel();
             document.getElementById('pdf-contrato').innerText = getContrato();
-
-            /* Traspasar datos de texto */
             document.getElementById('pdf-fecha').innerText = formatearFecha(fechaB);
             document.getElementById('pdf-hora-ingreso').innerText = formatearHora(hIng);
             document.getElementById('pdf-hora-salida').innerText = formatearHora(document.getElementById('hora_salida').value) || '—';
@@ -876,7 +794,6 @@
             document.getElementById('pdf-camioneta-cant').innerText = document.getElementById('camioneta_cant').value;
             document.getElementById('pdf-camioneta-desc').innerText = document.getElementById('camioneta_desc').value;
 
-            /* Firma */
             const firmaImg = document.getElementById('pdf-firma-img');
             if (!signaturePad.isEmpty()) {
                 firmaImg.src = signaturePad.toDataURL();
@@ -885,38 +802,36 @@
                 firmaImg.style.display = 'none';
             }
 
-            /* Fotos */
             ['ast', 'charla', 'chk1', 'chk2', 'act1', 'act2', 'act3', 'act4'].forEach(setFotoPdf);
 
-            /* Nombre de archivo */
             const [y, m, d] = fechaB.split('-');
             const fechaStr = `${y}${m}${d}`;
             const fileName = `Reporte_Diario_SICE_${lugar.replace(/\s+/g, '')}_${fechaStr}.pdf`;
 
-            /* Scroll al top para captura correcta */
             const scrollActual = window.scrollY;
             window.scrollTo(0, 0);
 
-            /* Hacer visible el wrapper ANTES de capturar */
             const wrapper = document.getElementById('pdf-wrapper');
             const elemento = document.getElementById('pdf-template');
+            
             wrapper.style.visibility = 'visible';
             wrapper.style.position = 'absolute';
-            wrapper.style.left = '0';          // Corregido: ya no lo enviamos fuera de pantalla
+            wrapper.style.left = '0';
             wrapper.style.top = '0';
-            wrapper.style.zIndex = '-1';         // Lo ocultamos detrás de la pantalla de carga (#loader)
+            wrapper.style.zIndex = '-1';
 
-            /* Esperamos 800ms para asegurar que imágenes y DOM se rendericen */
             setTimeout(() => {
                 const opciones = {
                     margin: [15, 15, 15, 15],
                     filename: fileName,
-                    image: { type: 'jpeg', quality: 0.85 }, // Reducir un poco la calidad del JPEG
+                    image: { type: 'jpeg', quality: 0.85 },
                     html2canvas: {
-                        scale: 1.5,  // Cambiar de 2 a 1.5 alivia enormemente la memoria en el iPhone
+                        scale: 1.5,
                         useCORS: true,
                         scrollY: 0,
-                        windowWidth: 680
+                        scrollX: 0,
+                        windowWidth: 800, // Fuerza un viewport ancho para evitar recortes
+                        width: 681 // Especifica el ancho exacto
                     },
                     pagebreak: { mode: ['css', 'legacy'] },
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
