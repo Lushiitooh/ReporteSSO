@@ -1,0 +1,6 @@
+# Herramientas locales de Claude Code (no forman parte del proyecto)
+.claude/
+
+# Archivos del sistema operativo
+Thumbs.db
+.DS_Store
