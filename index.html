@@ -7,7 +7,9 @@
     <title>Reporte Diario SSO - SICE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Motor de PDF vectorial (determinista en todo dispositivo) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         body {
@@ -22,121 +24,6 @@
             height: 200px;
             background-color: #ffffff;
             touch-action: none;
-        }
-
-        /* ── PDF wrapper ── */
-        #pdf-wrapper {
-            position: absolute;
-            top: -99999px;
-            left: 0;
-            width: 681px !important;
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        #pdf-template {
-            background: white;
-            padding: 0;
-            color: #000;
-            width: 681px !important;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-
-        /* ── Páginas del PDF ── */
-        .pdf-page {
-            position: relative;
-            width: 681px !important;
-            background: #ffffff;
-            box-sizing: border-box;
-        }
-
-        /* ── Secciones del PDF ── */
-        .pdf-section {
-            margin-bottom: 18px;
-        }
-
-        .pdf-title {
-            font-size: 13px;
-            font-weight: bold;
-            background-color: #dbeafe;
-            color: #1e3a8a;
-            padding: 6px 10px;
-            text-align: center;
-            border: 1px solid #93c5fd;
-            margin-bottom: 10px;
-        }
-
-        .pdf-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        }
-
-        .pdf-table th,
-        .pdf-table td {
-            border: 1px solid #9ca3af;
-            padding: 7px 9px;
-            text-align: left;
-            vertical-align: top;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            max-width: 0;
-        }
-
-        .pdf-table th {
-            background-color: #f3f4f6;
-            width: 32%;
-            font-weight: bold;
-        }
-
-        /* ── PDF: Página de foto completa (Ajustada para evitar saltos) ── */
-        .pdf-full-photo-page {
-            page-break-before: always;
-            break-before: page;
-            page-break-inside: avoid;
-            break-inside: avoid;
-            height: 950px; /* Altura óptima para una página A4 con márgenes de 15mm */
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .pdf-full-photo-page .photo-title {
-            font-size: 13px;
-            font-weight: bold;
-            text-align: center;
-            background: #dbeafe;
-            color: #1e3a8a;
-            padding: 9px 10px;
-            border: 1px solid #93c5fd;
-            margin-bottom: 10px;
-            flex-shrink: 0;
-            text-transform: uppercase;
-        }
-
-        .pdf-full-photo-page .photo-container {
-            flex: 1;
-            border: 1px solid #d1d5db;
-            background: #f9fafb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            min-height: 0;
-        }
-
-        .pdf-full-photo-page .photo-container img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            display: block;
-        }
-
-        .pdf-no-photo {
-            color: #9ca3af;
-            text-align: center;
-            font-size: 13px;
         }
 
         /* ── Loader ── */
@@ -421,205 +308,10 @@
         </form>
     </main>
 
-    <div id="pdf-wrapper">
-        <div id="pdf-template">
-            <div style="padding: 0 2mm;">
-                <div class="pdf-section" style="
-            display:flex; justify-content:space-between; align-items:center;
-            border-bottom:2px solid #1e3a8a; padding-bottom:14px; margin-bottom:22px;">
-                    <img src="logo-sice.png" alt="SICE" crossorigin="anonymous"
-                        style="height:42px; width:130px; object-fit:contain;">
-                    <div style="text-align:center; flex-grow:1; padding:0 14px;">
-                        <div style="font-size:14px; font-weight:bold; color:#1e3a8a; text-transform:uppercase;">
-                            Sistema de Gestión de Seguridad y Salud Ocupacional
-                        </div>
-                        <div style="font-size:12px; color:#4b5563; margin-top:3px; text-transform:uppercase;">
-                            Reporte Diario de Actividades
-                        </div>
-                    </div>
-                    <img id="pdf-logo-mandante" src="logo-efe.png" alt="Mandante" crossorigin="anonymous"
-                        style="height:42px; width:130px; object-fit:contain;">
-                </div>
-
-                <div class="pdf-section">
-                    <table class="pdf-table">
-                        <tbody>
-                            <tr>
-                                <th>Empresa</th>
-                                <td>SICE AGENCIA CHILE S.A.</td>
-                            </tr>
-                            <tr>
-                                <th>Empresa Mandante</th>
-                                <td id="pdf-mandante"></td>
-                            </tr>
-                            <tr>
-                                <th>Fecha de actividades</th>
-                                <td id="pdf-fecha"></td>
-                            </tr>
-                            <tr>
-                                <th>Horario de ingreso</th>
-                                <td id="pdf-hora-ingreso"></td>
-                            </tr>
-                            <tr>
-                                <th>Horario de salida</th>
-                                <td id="pdf-hora-salida"></td>
-                            </tr>
-                            <tr>
-                                <th>Contrato</th>
-                                <td id="pdf-contrato"></td>
-                            </tr>
-                            <tr>
-                                <th>Lugar específico</th>
-                                <td id="pdf-lugar"></td>
-                            </tr>
-                            <tr>
-                                <th>Trabajos realizados</th>
-                                <td id="pdf-trabajos" style="white-space:pre-wrap;"></td>
-                            </tr>
-                            <tr>
-                                <th>Observaciones de Prevención</th>
-                                <td id="pdf-observaciones" style="white-space:pre-wrap;"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pdf-section">
-                    <table class="pdf-table">
-                        <tbody>
-                            <tr>
-                                <th>Supervisor SICE</th>
-                                <td id="pdf-supervisor"></td>
-                            </tr>
-                            <tr>
-                                <th>Prevencionista de Riesgos</th>
-                                <td id="pdf-prevencionista"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pdf-section">
-                    <div class="pdf-title">DOTACIÓN Y RECURSOS</div>
-                    <table class="pdf-table">
-                        <thead>
-                            <tr>
-                                <th style="width:34%">Ítem</th>
-                                <th style="width:12%; text-align:center;">Cantidad</th>
-                                <th>Desglose / Observaciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>N° de trabajadores ITO (CyD)</td>
-                                <td style="text-align:center;" id="pdf-ito-cant"></td>
-                                <td id="pdf-ito-desc"></td>
-                            </tr>
-                            <tr>
-                                <td>N° de trabajadores SICE</td>
-                                <td style="text-align:center;" id="pdf-sice-cant"></td>
-                                <td id="pdf-sice-desc"></td>
-                            </tr>
-                            <tr>
-                                <td>Camionetas SICE</td>
-                                <td style="text-align:center;" id="pdf-camioneta-cant"></td>
-                                <td id="pdf-camioneta-desc"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pdf-section" style="margin-top:36px; text-align:center; page-break-inside:avoid;">
-                    <div style="
-                width:260px; margin:0 auto;
-                border-bottom:1px solid #000;
-                height:115px;
-                display:flex; align-items:flex-end; justify-content:center;
-                padding-bottom:6px;">
-                        <img id="pdf-firma-img" src="" style="max-height:105px; display:none;">
-                    </div>
-                    <p id="pdf-firma-nombre"
-                        style="margin-top:7px; font-weight:bold; font-size:13px; text-transform:uppercase;"></p>
-                    <p style="font-size:11px; color:#4b5563;">PREVENCIONISTA DE RIESGOS SICE</p>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
-                        <span id="pdf-label-ast" style="font-size:12px;">1. AST</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-ast">
-                        <img id="pdf-img-ast" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
-                        <span style="font-size:12px;">2. Charla Operacional 5 Minutos</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-charla">
-                        <img id="pdf-img-charla" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
-                        <span style="font-size:12px;">3. Check List 1</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-chk1">
-                        <img id="pdf-img-chk1" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN<br>
-                        <span style="font-size:12px;">4. Check List 2</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-chk2">
-                        <img id="pdf-img-chk2" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
-                        <span style="font-size:12px;">Actividad 1</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-act1">
-                        <img id="pdf-img-act1" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
-                        <span style="font-size:12px;">Actividad 2</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-act2">
-                        <img id="pdf-img-act2" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
-                        <span style="font-size:12px;">Actividad 3</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-act3">
-                        <img id="pdf-img-act3" src="" alt="">
-                    </div>
-                </div>
-
-                <div class="pdf-page pdf-full-photo-page">
-                    <div class="photo-title">EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO<br>
-                        <span style="font-size:12px;">Actividad 4</span>
-                    </div>
-                    <div class="photo-container" id="pdf-wrap-act4">
-                        <img id="pdf-img-act4" src="" alt="">
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
     <script>
+        /* ════════════════════════════════════════════════════════════════
+           CONFIGURACIÓN DE FOTOGRAFÍAS
+        ════════════════════════════════════════════════════════════════ */
         const FOTO_CONFIG = [
             { id: 'ast', label: '1. AST', tipo: 'doc' },
             { id: 'charla', label: '2. Charla 5 Min', tipo: 'doc' },
@@ -631,9 +323,64 @@
             { id: 'act4', label: 'Foto Actividad 4', tipo: 'act' },
         ];
 
+        // Cada entrada guardará { dataURL, w, h } una vez procesada, o null.
         const imagenesCargadas = {};
-        FOTO_CONFIG.forEach(c => { imagenesCargadas[c.id] = ''; });
+        FOTO_CONFIG.forEach(c => { imagenesCargadas[c.id] = null; });
 
+        /* ════════════════════════════════════════════════════════════════
+           PROCESAMIENTO UNIVERSAL DE IMÁGENES
+           Re-codifica cualquier imagen a través de un <canvas>:
+            - Corrige automáticamente la orientación EXIF de fotos de celular
+              (los navegadores modernos aplican image-orientation por defecto
+               al dibujar en canvas, así que w/h y los píxeles quedan derechos).
+            - Reduce el tamaño (máx. lado) → PDF liviano y sin problemas de memoria.
+            - Normaliza el formato (JPEG para fotos, PNG para logos/firma).
+           Devuelve { dataURL, w, h } con las dimensiones YA orientadas.
+        ════════════════════════════════════════════════════════════════ */
+        function loadImageObj(src, opts) {
+            opts = opts || {};
+            const maxSide = opts.maxSide || 1600;
+            const asPng = !!opts.png;
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const nW = img.naturalWidth || img.width;
+                    const nH = img.naturalHeight || img.height;
+                    if (!nW || !nH) { resolve(null); return; }
+                    const scale = Math.min(1, maxSide / Math.max(nW, nH));
+                    const cw = Math.max(1, Math.round(nW * scale));
+                    const ch = Math.max(1, Math.round(nH * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cw;
+                    canvas.height = ch;
+                    const ctx = canvas.getContext('2d');
+                    if (!asPng) { // las fotos van sobre fondo blanco (sin transparencia)
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, cw, ch);
+                    }
+                    ctx.drawImage(img, 0, 0, cw, ch);
+                    const dataURL = asPng
+                        ? canvas.toDataURL('image/png')
+                        : canvas.toDataURL('image/jpeg', 0.82);
+                    resolve({ dataURL, w: cw, h: ch });
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+
+        /* ── Pre-carga de logos (una sola vez al abrir la página) ── */
+        const logos = { sice: null, efe: null, metro: null };
+        const logosReady = Promise.all([
+            loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
+            loadImageObj('logo-efe.png', { png: true, maxSide: 600 }).then(o => logos.efe = o),
+            loadImageObj('logo-metro.png', { png: true, maxSide: 600 }).then(o => logos.metro = o),
+        ]);
+
+        /* ════════════════════════════════════════════════════════════════
+           GRILLA DE CARGA DE FOTOS (UI)
+        ════════════════════════════════════════════════════════════════ */
         function crearGrilla(tipo, contenedorId) {
             const cont = document.getElementById(contenedorId);
             FOTO_CONFIG.filter(c => c.tipo === tipo).forEach(cfg => {
@@ -664,17 +411,12 @@
         function actualizarLabelAST() {
             const mandante = document.getElementById('mandante').value;
             const labelUI = document.getElementById('label_ast_ui');
-            const labelPDF = document.getElementById('pdf-label-ast');
-
-            if (mandante === 'EFE') {
-                if (labelUI) labelUI.innerText = '1. HCR';
-                if (labelPDF) labelPDF.innerText = '1. HCR';
-            } else {
-                if (labelUI) labelUI.innerText = '1. AST';
-                if (labelPDF) labelPDF.innerText = '1. AST';
-            }
+            if (labelUI) labelUI.innerText = (mandante === 'EFE') ? '1. HCR' : '1. AST';
         }
 
+        /* ════════════════════════════════════════════════════════════════
+           FIRMA
+        ════════════════════════════════════════════════════════════════ */
         const canvas = document.getElementById('signature-pad');
         const signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgb(255,255,255)',
@@ -690,6 +432,9 @@
         window.addEventListener('resize', resizeCanvas);
         setTimeout(resizeCanvas, 100);
 
+        /* ════════════════════════════════════════════════════════════════
+           LÓGICA DEL FORMULARIO
+        ════════════════════════════════════════════════════════════════ */
         function onMandanteChange() {
             const val = document.getElementById('mandante').value;
             document.getElementById('bloque-contrato-efe').classList.toggle('hidden', val !== 'EFE');
@@ -719,17 +464,18 @@
             return '';
         }
 
-        function previewImage(event, previewId, key) {
+        async function previewImage(event, previewId, key) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById(previewId).src = e.target.result;
-                document.getElementById(previewId).classList.remove('hidden');
-                document.getElementById('text_' + key).classList.add('hidden');
-                imagenesCargadas[key] = e.target.result;
-            };
-            reader.readAsDataURL(file);
+            const url = URL.createObjectURL(file);
+            const obj = await loadImageObj(url, { png: false, maxSide: 1600 });
+            URL.revokeObjectURL(url);
+            if (!obj) { alert('No se pudo procesar esta imagen. Intenta con otra.'); return; }
+            imagenesCargadas[key] = obj;
+            const pv = document.getElementById(previewId);
+            pv.src = obj.dataURL;
+            pv.classList.remove('hidden');
+            document.getElementById('text_' + key).classList.add('hidden');
         }
 
         function formatearHora(timeValue) {
@@ -746,21 +492,75 @@
             return `${d}/${m}/${y}`;
         }
 
-        function setFotoPdf(key) {
-            const img = document.getElementById('pdf-img-' + key);
-            const wrap = document.getElementById('pdf-wrap-' + key);
-            if (!img || !wrap) return;
-            if (imagenesCargadas[key]) {
-                wrap.innerHTML = '';
-                img.src = imagenesCargadas[key];
-                img.style.cssText = 'max-width:100%; max-height:100%; object-fit:contain; display:block;';
-                wrap.appendChild(img);
-            } else {
-                wrap.innerHTML = '<div class="pdf-no-photo"><div style="font-size:36px; margin-bottom:8px;">📷</div><div>Sin Fotografía</div></div>';
-            }
+        /* ════════════════════════════════════════════════════════════════
+           GENERACIÓN DEL PDF (100% VECTORIAL — jsPDF)
+           Coordenadas reales en milímetros sobre un A4 (210 × 297).
+           El resultado es IDÉNTICO en cualquier teléfono, tablet o PC.
+        ════════════════════════════════════════════════════════════════ */
+
+        // Geometría de la página (mm)
+        const PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
+        const CONTENT_W = PAGE_W - MARGIN * 2;          // 180
+        const CONTENT_BOTTOM = PAGE_H - MARGIN;         // 282
+
+        // Colores
+        const C_AZUL = [30, 58, 138];      // títulos / encabezado
+        const C_AZUL_CLARO = [219, 234, 254];
+        const C_AZUL_BORDE = [147, 197, 253];
+        const C_GRIS_TXT = [75, 85, 99];
+        const C_GRIS_BORDE = [156, 163, 175];
+        const C_GRIS_FILA = [243, 244, 246];
+        const C_NEGRO = [17, 24, 39];
+
+        // Dibuja una imagen { dataURL, w, h } ajustada por proporción DENTRO de
+        // una caja (x, y, w, h). NUNCA se sale de la caja → nunca se corta.
+        function placeContain(doc, im, x, y, w, h, halign, valign) {
+            if (!im || !im.dataURL) return;
+            const r = Math.min(w / im.w, h / im.h);
+            const dw = im.w * r, dh = im.h * r;
+            const dx = x + (halign === 'l' ? 0 : halign === 'r' ? (w - dw) : (w - dw) / 2);
+            const dy = y + (valign === 't' ? 0 : valign === 'b' ? (h - dh) : (h - dh) / 2);
+            const fmt = im.dataURL.indexOf('data:image/png') === 0 ? 'PNG' : 'JPEG';
+            doc.addImage(im.dataURL, fmt, dx, dy, dw, dh);
         }
 
-        function generarPDF() {
+        function dibujarEncabezado(doc, mandante) {
+            // Logos (ajustados por proporción dentro de su caja)
+            placeContain(doc, logos.sice, MARGIN, 12, 42, 14, 'l', 'm');
+            const mLogo = (mandante === 'METRO') ? logos.metro : logos.efe;
+            placeContain(doc, mLogo, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
+
+            // Título central
+            doc.setTextColor(...C_AZUL);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text('SISTEMA DE GESTIÓN DE SEGURIDAD', PAGE_W / 2, 16, { align: 'center' });
+            doc.text('Y SALUD OCUPACIONAL', PAGE_W / 2, 20.5, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(...C_GRIS_TXT);
+            doc.text('REPORTE DIARIO DE ACTIVIDADES', PAGE_W / 2, 25, { align: 'center' });
+
+            // Línea azul inferior
+            doc.setDrawColor(...C_AZUL);
+            doc.setLineWidth(0.6);
+            doc.line(MARGIN, 29, PAGE_W - MARGIN, 29);
+        }
+
+        function tituloSeccion(doc, texto, y) {
+            doc.setFillColor(...C_AZUL_CLARO);
+            doc.rect(MARGIN, y, CONTENT_W, 7, 'F');
+            doc.setDrawColor(...C_AZUL_BORDE);
+            doc.setLineWidth(0.2);
+            doc.rect(MARGIN, y, CONTENT_W, 7, 'S');
+            doc.setTextColor(...C_AZUL);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text(texto, PAGE_W / 2, y + 4.8, { align: 'center' });
+            return y + 7;
+        }
+
+        async function generarPDF() {
             const lugar = getLugar();
             const mandante = document.getElementById('mandante').value;
             const fechaB = document.getElementById('fecha_base').value;
@@ -772,90 +572,185 @@
             }
 
             document.getElementById('loader').style.display = 'flex';
-            actualizarLabelAST();
 
-            document.getElementById('pdf-logo-mandante').src =
-                mandante === 'METRO' ? 'logo-metro.png' : 'logo-efe.png';
+            try {
+                await logosReady; // garantiza que los logos estén listos (sin carreras)
 
-            document.getElementById('pdf-mandante').innerText = getMandanteLabel();
-            document.getElementById('pdf-contrato').innerText = getContrato();
-            document.getElementById('pdf-fecha').innerText = formatearFecha(fechaB);
-            document.getElementById('pdf-hora-ingreso').innerText = formatearHora(hIng);
-            document.getElementById('pdf-hora-salida').innerText = formatearHora(document.getElementById('hora_salida').value) || '—';
-            document.getElementById('pdf-lugar').innerText = lugar;
-            document.getElementById('pdf-trabajos').innerText = document.getElementById('trabajos').value || 'Sin descripción.';
-            document.getElementById('pdf-observaciones').innerText = document.getElementById('observaciones').value || 'Sin observaciones.';
+                // Firma → objeto imagen orientado (si existe)
+                let firma = null;
+                if (!signaturePad.isEmpty()) {
+                    firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+                }
 
-            const nombrePreve = document.getElementById('prevencionista').value;
-            document.getElementById('pdf-supervisor').innerText = document.getElementById('supervisor').value || 'No especificado';
-            document.getElementById('pdf-prevencionista').innerText = nombrePreve || 'No especificado';
-            document.getElementById('pdf-firma-nombre').innerText = nombrePreve || 'Prevencionista de Riesgos';
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+                doc.setProperties({ title: 'Reporte Diario SSO - SICE' });
 
-            document.getElementById('pdf-ito-cant').innerText = document.getElementById('ito_cant').value;
-            document.getElementById('pdf-ito-desc').innerText = document.getElementById('ito_desc').value;
-            document.getElementById('pdf-sice-cant').innerText = document.getElementById('sice_cant').value;
-            document.getElementById('pdf-sice-desc').innerText = document.getElementById('sice_desc').value;
-            document.getElementById('pdf-camioneta-cant').innerText = document.getElementById('camioneta_cant').value;
-            document.getElementById('pdf-camioneta-desc').innerText = document.getElementById('camioneta_desc').value;
+                /* ── Encabezado ── */
+                dibujarEncabezado(doc, mandante);
 
-            const firmaImg = document.getElementById('pdf-firma-img');
-            if (!signaturePad.isEmpty()) {
-                firmaImg.src = signaturePad.toDataURL();
-                firmaImg.style.display = 'block';
-            } else {
-                firmaImg.style.display = 'none';
-            }
+                /* ── Tabla: Información general ── */
+                const nombrePreve = document.getElementById('prevencionista').value;
+                const infoRows = [
+                    ['Empresa', 'SICE AGENCIA CHILE S.A.'],
+                    ['Empresa Mandante', getMandanteLabel()],
+                    ['Fecha de actividades', formatearFecha(fechaB)],
+                    ['Horario de ingreso', formatearHora(hIng)],
+                    ['Horario de salida', formatearHora(document.getElementById('hora_salida').value)],
+                    ['Contrato', getContrato()],
+                    ['Lugar específico', lugar],
+                    ['Trabajos realizados', document.getElementById('trabajos').value || 'Sin descripción.'],
+                    ['Observaciones de Prevención', document.getElementById('observaciones').value || 'Sin observaciones.'],
+                ];
 
-            ['ast', 'charla', 'chk1', 'chk2', 'act1', 'act2', 'act3', 'act4'].forEach(setFotoPdf);
-
-            const [y, m, d] = fechaB.split('-');
-            const fechaStr = `${y}${m}${d}`;
-            const fileName = `Reporte_Diario_SICE_${lugar.replace(/\s+/g, '')}_${fechaStr}.pdf`;
-
-            const scrollActual = window.scrollY;
-            window.scrollTo(0, 0);
-
-            const wrapper = document.getElementById('pdf-wrapper');
-            const elemento = document.getElementById('pdf-template');
-            
-            wrapper.style.visibility = 'visible';
-            wrapper.style.position = 'absolute';
-            wrapper.style.left = '0';
-            wrapper.style.top = '0';
-            wrapper.style.zIndex = '-1';
-
-            setTimeout(() => {
-                const opciones = {
-                    margin: [15, 15, 15, 15],
-                    filename: fileName,
-                    image: { type: 'jpeg', quality: 0.85 },
-                    html2canvas: {
-                        scale: 1.5,
-                        useCORS: true,
-                        scrollY: 0,
-                        scrollX: 0,
-                        windowWidth: 800,
-                        width: 681
+                doc.autoTable({
+                    startY: 34,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 9, valign: 'top', overflow: 'linebreak',
+                        cellPadding: { top: 1.6, bottom: 1.6, left: 2.2, right: 2.2 },
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
                     },
-                    pagebreak: { mode: ['css', 'legacy'] },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                };
+                    columnStyles: {
+                        0: { cellWidth: 55, fillColor: C_GRIS_FILA, fontStyle: 'bold' },
+                        1: { cellWidth: CONTENT_W - 55 }
+                    },
+                    body: infoRows
+                });
 
-                html2pdf().set(opciones).from(elemento).save()
-                    .then(() => {
-                        wrapper.style.visibility = 'hidden';
-                        window.scrollTo(0, scrollActual);
-                        document.getElementById('loader').style.display = 'none';
-                        alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        wrapper.style.visibility = 'hidden';
-                        window.scrollTo(0, scrollActual);
-                        document.getElementById('loader').style.display = 'none';
-                        alert('Error al generar el PDF. Intenta nuevamente.');
-                    });
-            }, 800);
+                /* ── Tabla: Personal a cargo ── */
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 4,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 9, valign: 'top', overflow: 'linebreak',
+                        cellPadding: { top: 1.6, bottom: 1.6, left: 2.2, right: 2.2 },
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 55, fillColor: C_GRIS_FILA, fontStyle: 'bold' },
+                        1: { cellWidth: CONTENT_W - 55 }
+                    },
+                    body: [
+                        ['Supervisor SICE', document.getElementById('supervisor').value || 'No especificado'],
+                        ['Prevencionista de Riesgos', nombrePreve || 'No especificado'],
+                    ]
+                });
+
+                /* ── Tabla: Dotación y recursos ── */
+                let yDot = doc.lastAutoTable.finalY + 6;
+                if (yDot + 40 > CONTENT_BOTTOM) { doc.addPage(); yDot = MARGIN; }
+                const tablaDotStart = tituloSeccion(doc, 'DOTACIÓN Y RECURSOS', yDot);
+
+                doc.autoTable({
+                    startY: tablaDotStart,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 9, valign: 'top', overflow: 'linebreak',
+                        cellPadding: { top: 1.6, bottom: 1.6, left: 2.2, right: 2.2 },
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                    },
+                    headStyles: {
+                        fillColor: C_GRIS_FILA, textColor: C_NEGRO, fontStyle: 'bold', lineColor: C_GRIS_BORDE, lineWidth: 0.1
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 75 },
+                        1: { cellWidth: 25, halign: 'center' },
+                        2: { cellWidth: CONTENT_W - 100 }
+                    },
+                    head: [['Ítem', 'Cantidad', 'Desglose / Observaciones']],
+                    body: [
+                        ['N° de trabajadores ITO (CyD)', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value],
+                        ['N° de trabajadores SICE', document.getElementById('sice_cant').value, document.getElementById('sice_desc').value],
+                        ['Camionetas SICE', document.getElementById('camioneta_cant').value, document.getElementById('camioneta_desc').value],
+                    ]
+                });
+
+                /* ── Bloque de firma ── */
+                let yF = doc.lastAutoTable.finalY;
+                const ALTO_FIRMA = 52;
+                if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
+                const lineaY = yF + 16 + 26;          // base de la línea de firma
+                placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
+                doc.setDrawColor(0, 0, 0);
+                doc.setLineWidth(0.3);
+                doc.line(PAGE_W / 2 - 35, lineaY, PAGE_W / 2 + 35, lineaY);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text((nombrePreve || 'Prevencionista de Riesgos').toUpperCase(), PAGE_W / 2, lineaY + 6, { align: 'center' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(...C_GRIS_TXT);
+                doc.text('PREVENCIONISTA DE RIESGOS SICE', PAGE_W / 2, lineaY + 11, { align: 'center' });
+
+                /* ── Páginas de evidencia fotográfica (una por foto) ── */
+                const G_DOC = 'EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN';
+                const G_ACT = 'EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO';
+                const astLabel = (mandante === 'EFE') ? '1. HCR' : '1. AST';
+                const PHOTOS = [
+                    { id: 'ast', group: G_DOC, label: astLabel },
+                    { id: 'charla', group: G_DOC, label: '2. Charla Operacional 5 Minutos' },
+                    { id: 'chk1', group: G_DOC, label: '3. Check List 1' },
+                    { id: 'chk2', group: G_DOC, label: '4. Check List 2' },
+                    { id: 'act1', group: G_ACT, label: 'Actividad 1' },
+                    { id: 'act2', group: G_ACT, label: 'Actividad 2' },
+                    { id: 'act3', group: G_ACT, label: 'Actividad 3' },
+                    { id: 'act4', group: G_ACT, label: 'Actividad 4' },
+                ];
+
+                PHOTOS.forEach(p => {
+                    doc.addPage();
+
+                    // Barra de título
+                    doc.setFillColor(...C_AZUL_CLARO);
+                    doc.rect(MARGIN, MARGIN, CONTENT_W, 12, 'F');
+                    doc.setDrawColor(...C_AZUL_BORDE);
+                    doc.setLineWidth(0.2);
+                    doc.rect(MARGIN, MARGIN, CONTENT_W, 12, 'S');
+                    doc.setTextColor(...C_AZUL);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(9.5);
+                    doc.text(p.group, PAGE_W / 2, MARGIN + 5, { align: 'center' });
+                    doc.setFontSize(8.5);
+                    doc.text(p.label, PAGE_W / 2, MARGIN + 10, { align: 'center' });
+
+                    // Área de imagen (recuadro)
+                    const ay = MARGIN + 16;
+                    const ah = CONTENT_BOTTOM - ay;
+                    doc.setDrawColor(...C_GRIS_BORDE);
+                    doc.setLineWidth(0.2);
+                    doc.rect(MARGIN, ay, CONTENT_W, ah, 'S');
+
+                    const im = imagenesCargadas[p.id];
+                    if (im && im.dataURL) {
+                        placeContain(doc, im, MARGIN + 2, ay + 2, CONTENT_W - 4, ah - 4, 'c', 'm');
+                    } else {
+                        doc.setTextColor(...C_GRIS_BORDE);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(12);
+                        doc.text('Sin fotografía', PAGE_W / 2, ay + ah / 2, { align: 'center' });
+                    }
+                });
+
+                /* ── Guardar ── */
+                const [y, m, d] = fechaB.split('-');
+                const fileName = `Reporte_Diario_SICE_${lugar.replace(/\s+/g, '')}_${y}${m}${d}.pdf`;
+                doc.save(fileName);
+
+                document.getElementById('loader').style.display = 'none';
+                alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').style.display = 'none';
+                alert('Error al generar el PDF. Intenta nuevamente.');
+            }
         }
     </script>
 </body>
