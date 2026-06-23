@@ -95,10 +95,17 @@
                         <input type="text" id="cargo" required placeholder="Ej: Técnico de Comunicaciones"
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Fecha del accidente</label>
-                        <input type="date" id="fecha" required
-                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <div class="flex gap-3">
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium mb-1">Fecha del accidente</label>
+                            <input type="date" id="fecha" required
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
+                        <div class="flex-1">
+                            <label class="block text-sm font-medium mb-1">Hora del accidente</label>
+                            <input type="time" id="hora" required
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Agencia</label>
@@ -238,6 +245,14 @@
             return `${d}/${m}/${y}`;
         }
 
+        function formatearHora(timeValue) {
+            if (!timeValue) return '—';
+            const [hh, mm] = timeValue.split(':').map(Number);
+            const ampm = hh >= 12 ? 'PM' : 'AM';
+            const h12 = hh % 12 || 12;
+            return `${String(h12).padStart(2, '0')}:${String(mm).padStart(2, '0')} ${ampm}`;
+        }
+
         /* ════════════════════════════════════════════════════════════════
            GENERACIÓN DEL PDF (vectorial) — réplica del formato FTO-PR-15
         ════════════════════════════════════════════════════════════════ */
@@ -292,10 +307,11 @@
             const rut = document.getElementById('rut').value.trim();
             const cargo = document.getElementById('cargo').value.trim();
             const fecha = document.getElementById('fecha').value;
+            const hora = document.getElementById('hora').value;
             const declaracion = document.getElementById('declaracion').value.trim();
 
-            if (!nombre || !rut || !cargo || !fecha || !declaracion) {
-                alert('Por favor, completa Nombre, RUT, Cargo, Fecha del accidente y la Declaración.');
+            if (!nombre || !rut || !cargo || !fecha || !hora || !declaracion) {
+                alert('Por favor, completa Nombre, RUT, Cargo, Fecha y Hora del accidente y la Declaración.');
                 return;
             }
             if (!validarRut(rut)) {
@@ -340,6 +356,7 @@
                         ['Nombre', nombre],
                         ['Rut', formatRut(rut)],
                         ['Fecha', formatearFecha(fecha)],
+                        ['Hora', formatearHora(hora)],
                         ['Agencia', 'SICE Agencia Chile S.A.'],
                     ]
                 });
