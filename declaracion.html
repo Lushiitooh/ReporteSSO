@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Declaración de Trabajador - SICE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- Motor de PDF vectorial (determinista en todo dispositivo) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .signature-pad {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            width: 100%;
+            height: 200px;
+            background-color: #ffffff;
+            touch-action: none;
+        }
+
+        #loader {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 antialiased pb-20">
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p class="font-bold text-xl">Generando PDF...</p>
+        <p class="text-sm mt-2 text-gray-300">Ajustando el documento, por favor espera.</p>
+    </div>
+
+    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold">Declaración de Trabajador</h1>
+            <p class="text-xs text-blue-200">SICE Agencia Chile S.A. · FTO-PR-15 (Versión 03)</p>
+        </div>
+        <a href="index.html" class="text-xs text-blue-100 underline hover:text-white whitespace-nowrap">Reporte SSO →</a>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+        <form id="declaracion-form" class="space-y-6">
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">1. Datos del Trabajador</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre completo</label>
+                        <input type="text" id="nombre" required placeholder="Ej: Juan Pérez González"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">RUT</label>
+                        <input type="text" id="rut" required placeholder="Ej: 12.345.678-9" inputmode="text"
+                            oninput="onRutInput()" onblur="onRutBlur()"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        <p id="rut-error" class="hidden text-xs text-red-600 mt-1">RUT inválido — revisa el dígito verificador.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" id="cargo" required placeholder="Ej: Técnico de Comunicaciones"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha del accidente</label>
+                        <input type="date" id="fecha" required
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Agencia</label>
+                        <input type="text" id="agencia" value="SICE Agencia Chile S.A." readonly
+                            class="w-full border border-gray-300 p-2 rounded bg-gray-100 text-gray-500">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-1 text-gray-700">2. Declaración</h2>
+                <p class="text-xs text-gray-500 mb-3 italic">Describir claramente lo ocurrido.</p>
+                <textarea id="declaracion" rows="10" required
+                    placeholder="Relate con el mayor detalle posible: qué ocurrió, cuándo, dónde, cómo y quiénes estaban presentes..."
+                    class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50"></textarea>
+            </section>
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Firma del Trabajador</h2>
+                <canvas id="signature-pad" class="signature-pad"></canvas>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-xs text-gray-500">Firma dentro del recuadro</span>
+                    <button type="button" onclick="signaturePad.clear()"
+                        class="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 font-semibold">
+                        Limpiar Firma
+                    </button>
+                </div>
+            </section>
+
+            <button type="button" onclick="generarPDF()"
+                class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8 flex justify-center items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Generar y Descargar PDF
+            </button>
+        </form>
+    </main>
+
+    <script>
+        /* ════════════════════════════════════════════════════════════════
+           IMÁGENES (logo + firma) — mismo enfoque universal que Reporte SSO
+        ════════════════════════════════════════════════════════════════ */
+        function loadImageObj(src, opts) {
+            opts = opts || {};
+            const maxSide = opts.maxSide || 1600;
+            const asPng = !!opts.png;
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const nW = img.naturalWidth || img.width;
+                    const nH = img.naturalHeight || img.height;
+                    if (!nW || !nH) { resolve(null); return; }
+                    const scale = Math.min(1, maxSide / Math.max(nW, nH));
+                    const cw = Math.max(1, Math.round(nW * scale));
+                    const ch = Math.max(1, Math.round(nH * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cw; canvas.height = ch;
+                    const ctx = canvas.getContext('2d');
+                    if (!asPng) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cw, ch); }
+                    ctx.drawImage(img, 0, 0, cw, ch);
+                    const dataURL = asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.82);
+                    resolve({ dataURL, w: cw, h: ch });
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+
+        const logos = { sice: null };
+        const logosReady = loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o);
+
+        /* ════════════════════════════════════════════════════════════════
+           FIRMA
+        ════════════════════════════════════════════════════════════════ */
+        const canvas = document.getElementById('signature-pad');
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(0,0,128)'
+        });
+        function resizeCanvas() {
+            const r = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * r;
+            canvas.height = canvas.offsetHeight * r;
+            canvas.getContext('2d').scale(r, r);
+            signaturePad.clear();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 100);
+
+        /* ════════════════════════════════════════════════════════════════
+           RUT chileno: formateo + validación (módulo 11)
+        ════════════════════════════════════════════════════════════════ */
+        function limpiarRut(r) { return (r || '').replace(/[^0-9kK]/g, '').toUpperCase(); }
+
+        function formatRut(r) {
+            r = limpiarRut(r);
+            if (r.length < 2) return r;
+            let cuerpo = r.slice(0, -1);
+            const dv = r.slice(-1);
+            cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return cuerpo + '-' + dv;
+        }
+
+        function validarRut(r) {
+            r = limpiarRut(r);
+            if (r.length < 2) return false;
+            const cuerpo = r.slice(0, -1);
+            const dv = r.slice(-1);
+            if (!/^\d+$/.test(cuerpo)) return false;
+            let suma = 0, mul = 2;
+            for (let i = cuerpo.length - 1; i >= 0; i--) {
+                suma += parseInt(cuerpo[i], 10) * mul;
+                mul = mul === 7 ? 2 : mul + 1;
+            }
+            const res = 11 - (suma % 11);
+            const dvCalc = res === 11 ? '0' : res === 10 ? 'K' : String(res);
+            return dv === dvCalc;
+        }
+
+        function onRutInput() {
+            // Limpia el mensaje de error mientras escribe
+            document.getElementById('rut-error').classList.add('hidden');
+        }
+        function onRutBlur() {
+            const el = document.getElementById('rut');
+            if (!el.value.trim()) return;
+            el.value = formatRut(el.value);
+            document.getElementById('rut-error').classList.toggle('hidden', validarRut(el.value));
+        }
+
+        function formatearFecha(dateValue) {
+            if (!dateValue) return '—';
+            const [y, m, d] = dateValue.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           GENERACIÓN DEL PDF (vectorial) — réplica del formato FTO-PR-15
+        ════════════════════════════════════════════════════════════════ */
+        const PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
+        const CONTENT_W = PAGE_W - MARGIN * 2;     // 180
+        const CONTENT_BOTTOM = PAGE_H - MARGIN;    // 282
+
+        function placeContain(doc, im, x, y, w, h, halign, valign) {
+            if (!im || !im.dataURL) return;
+            const r = Math.min(w / im.w, h / im.h);
+            const dw = im.w * r, dh = im.h * r;
+            const dx = x + (halign === 'l' ? 0 : halign === 'r' ? (w - dw) : (w - dw) / 2);
+            const dy = y + (valign === 't' ? 0 : valign === 'b' ? (h - dh) : (h - dh) / 2);
+            const fmt = im.dataURL.indexOf('data:image/png') === 0 ? 'PNG' : 'JPEG';
+            doc.addImage(im.dataURL, fmt, dx, dy, dw, dh);
+        }
+
+        function dibujarEncabezado(doc) {
+            const x0 = MARGIN, x1 = PAGE_W - MARGIN, top = 12, H = 22;
+            const logoR = 58;      // borde derecho columna logo
+            const rightL = 158;    // borde izquierdo columna código
+            const mid = top + H / 2;
+            doc.setDrawColor(0); doc.setLineWidth(0.3);
+            doc.rect(x0, top, CONTENT_W, H);            // marco exterior
+            doc.line(logoR, top, logoR, top + H);        // separa logo
+            doc.line(rightL, top, rightL, top + H);      // separa columna código
+            doc.line(logoR, mid, x1, mid);               // división horizontal (centro + derecha)
+
+            // Logo
+            placeContain(doc, logos.sice, x0 + 3, top + 3, logoR - x0 - 6, H - 6, 'c', 'm');
+
+            // Centro
+            const cx = (logoR + rightL) / 2;
+            doc.setTextColor(0);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+            doc.text('DECLARACIÓN', cx, top + H / 4 + 1.8, { align: 'center' });
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+            doc.text('PLAN DE GESTIÓN EN PREVENCIÓN DE RIESGOS', cx, mid + H / 4 + 0.8, { align: 'center' });
+
+            // Columna derecha
+            const rx = (rightL + x1) / 2;
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+            doc.text('FTO-PR-15', rx, top + H / 4 + 1.3, { align: 'center' });
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+            doc.text('VERSIÓN 03', rx, mid + H / 4 + 0.8, { align: 'center' });
+
+            return top + H;
+        }
+
+        async function generarPDF() {
+            const nombre = document.getElementById('nombre').value.trim();
+            const rut = document.getElementById('rut').value.trim();
+            const cargo = document.getElementById('cargo').value.trim();
+            const fecha = document.getElementById('fecha').value;
+            const declaracion = document.getElementById('declaracion').value.trim();
+
+            if (!nombre || !rut || !cargo || !fecha || !declaracion) {
+                alert('Por favor, completa Nombre, RUT, Cargo, Fecha del accidente y la Declaración.');
+                return;
+            }
+            if (!validarRut(rut)) {
+                document.getElementById('rut-error').classList.remove('hidden');
+                alert('El RUT ingresado no es válido. Revisa el dígito verificador.');
+                return;
+            }
+            if (signaturePad.isEmpty()) {
+                alert('Falta la firma del trabajador. Por favor firma en el recuadro.');
+                return;
+            }
+
+            document.getElementById('loader').style.display = 'flex';
+
+            try {
+                await logosReady;
+                const firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+                doc.setProperties({ title: 'Declaración - SICE (FTO-PR-15)' });
+
+                /* ── Encabezado ── */
+                const headBottom = dibujarEncabezado(doc);
+
+                /* ── Tabla de datos ── */
+                doc.autoTable({
+                    startY: headBottom + 5,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 10, valign: 'middle', overflow: 'linebreak',
+                        cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 },
+                        lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 40, fontStyle: 'bold' },
+                        1: { cellWidth: CONTENT_W - 40 }
+                    },
+                    body: [
+                        ['Nombre', nombre],
+                        ['Rut', formatRut(rut)],
+                        ['Fecha', formatearFecha(fecha)],
+                        ['Agencia', 'SICE Agencia Chile S.A.'],
+                    ]
+                });
+
+                /* ── Encabezado de la Declaración ── */
+                let y = doc.lastAutoTable.finalY + 7;
+                doc.setTextColor(0);
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+                doc.text('Declaración', MARGIN, y);
+                const wTit = doc.getTextWidth('Declaración');
+                doc.setFont('helvetica', 'italic'); doc.setFontSize(9);
+                doc.text(' (describir claramente lo ocurrido)', MARGIN + wTit + 1, y);
+
+                /* ── Caja de la Declaración (crece y pagina si es largo) ── */
+                doc.autoTable({
+                    startY: y + 2.5,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 10.5, valign: 'top', overflow: 'linebreak',
+                        cellPadding: 3, lineColor: [0, 0, 0], lineWidth: 0.1, textColor: [0, 0, 0],
+                        minCellHeight: 120
+                    },
+                    body: [[declaracion]]
+                });
+
+                /* ── Bloque de firma ── */
+                let ys = doc.lastAutoTable.finalY + 8;
+                const blockH = 26, rowH = blockH / 2;
+                const labelW = 28, firmaL = 140;
+                if (ys + blockH > CONTENT_BOTTOM - 6) { doc.addPage(); ys = MARGIN + 5; }
+
+                doc.setDrawColor(0); doc.setLineWidth(0.3);
+                doc.rect(MARGIN, ys, CONTENT_W, blockH);                 // marco
+                doc.line(firmaL, ys, firmaL, ys + blockH);                // separa firma
+                doc.line(MARGIN, ys + rowH, firmaL, ys + rowH);           // división filas (izquierda)
+                doc.line(MARGIN + labelW, ys, MARGIN + labelW, ys + blockH); // división etiqueta/valor
+                doc.line(firmaL, ys + 6, PAGE_W - MARGIN, ys + 6);        // división "Firma" / área
+
+                doc.setTextColor(0);
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+                doc.text('Nombre', MARGIN + 2, ys + rowH / 2 + 1.3);
+                doc.text('Cargo', MARGIN + 2, ys + rowH + rowH / 2 + 1.3);
+                doc.text('Firma', (firmaL + PAGE_W - MARGIN) / 2, ys + 4.2, { align: 'center' });
+
+                doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+                doc.text(nombre, MARGIN + labelW + 2.5, ys + rowH / 2 + 1.3, { maxWidth: firmaL - MARGIN - labelW - 5 });
+                doc.text(cargo, MARGIN + labelW + 2.5, ys + rowH + rowH / 2 + 1.3, { maxWidth: firmaL - MARGIN - labelW - 5 });
+
+                placeContain(doc, firma, firmaL + 1.5, ys + 7, (PAGE_W - MARGIN) - firmaL - 3, blockH - 8.5, 'c', 'm');
+
+                /* ── Pie en todas las páginas ── */
+                const total = doc.getNumberOfPages();
+                for (let i = 1; i <= total; i++) {
+                    doc.setPage(i);
+                    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(0);
+                    doc.text('DEPARTAMENTO DE PREVENCIÓN DE RIESGOS SICE AGENCIA CHILE S.A.', PAGE_W / 2, PAGE_H - 8, { align: 'center' });
+                }
+
+                /* ── Guardar ── */
+                const [yy, mm, dd] = fecha.split('-');
+                const slug = nombre.replace(/\s+/g, '_').replace(/[^\wáéíóúñÁÉÍÓÚÑ_-]/g, '');
+                const fileName = `Declaracion_SICE_${slug}_${yy}${mm}${dd}.pdf`;
+                doc.save(fileName);
+
+                document.getElementById('loader').style.display = 'none';
+                alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').style.display = 'none';
+                alert('Error al generar el PDF. Intenta nuevamente.');
+            }
+        }
+    </script>
+</body>
+
+</html>
