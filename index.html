@@ -423,15 +423,27 @@
             backgroundColor: 'rgb(255,255,255)',
             penColor: 'rgb(0,0,128)'
         });
-        function resizeCanvas() {
-            const r = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * r;
-            canvas.height = canvas.offsetHeight * r;
-            canvas.getContext('2d').scale(r, r);
+        // Re-ajusta el lienzo SOLO cuando cambia el ANCHO (p. ej. al rotar el
+        // equipo). Así, al hacer scroll o abrir el teclado —que en el celular
+        // cambian solo el alto y disparan 'resize'— la firma YA NO se borra.
+        // Además preserva y restaura los trazos cuando sí hay que redimensionar.
+        let _lastSigWidth = 0;
+        function resizeCanvas(force) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const cssWidth = canvas.offsetWidth;
+            const cssHeight = canvas.offsetHeight;
+            if (force !== true && cssWidth === _lastSigWidth) return;
+            _lastSigWidth = cssWidth;
+            const data = signaturePad.toData();
+            canvas.width = cssWidth * ratio;
+            canvas.height = cssHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
             signaturePad.clear();
+            if (data && data.length) signaturePad.fromData(data);
         }
         window.addEventListener('resize', resizeCanvas);
-        setTimeout(resizeCanvas, 100);
+        window.addEventListener('orientationchange', () => setTimeout(() => resizeCanvas(true), 150));
+        setTimeout(() => resizeCanvas(true), 100);
 
         /* ════════════════════════════════════════════════════════════════
            LÓGICA DEL FORMULARIO
@@ -578,8 +590,10 @@
                 await logosReady; // garantiza que los logos estén listos (sin carreras)
 
                 // Firma → objeto imagen orientado (si existe)
+                // Usamos toData() (datos reales de los trazos) en vez de isEmpty(),
+                // porque tras restaurar la firma en un resize isEmpty() no es fiable.
                 let firma = null;
-                if (!signaturePad.isEmpty()) {
+                if (signaturePad.toData().length > 0) {
                     firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
                 }
 
