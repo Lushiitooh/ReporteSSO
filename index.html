@@ -239,6 +239,32 @@
                         <div id="nomina_sice"
                             class="bg-white border border-gray-300 rounded max-h-80 overflow-y-auto divide-y divide-gray-200">
                         </div>
+
+                        <button type="button" id="btn_visita" onclick="abrirFormVisita()"
+                            class="w-full mt-3 border-2 border-dashed border-blue-400 text-blue-700 font-semibold py-2 rounded hover:bg-blue-50 transition text-sm">
+                            + Agregar visita
+                        </button>
+
+                        <div id="form_visita" class="hidden mt-3 border border-blue-300 rounded p-3 bg-blue-50">
+                            <p class="text-xs font-bold text-blue-800 mb-2">DATOS DE LA VISITA</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="visita_rut" placeholder="RUT"
+                                    class="border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                <input type="text" id="visita_cargo" placeholder="Cargo (ej. ITO)"
+                                    class="border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                <input type="text" id="visita_nombres" placeholder="Nombres"
+                                    class="border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                                <input type="text" id="visita_apellidos" placeholder="Apellidos"
+                                    class="border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button type="button" onclick="confirmarVisita()"
+                                    class="flex-1 bg-blue-700 text-white text-sm font-semibold py-2 rounded hover:bg-blue-800">Agregar
+                                    al listado</button>
+                                <button type="button" onclick="cerrarFormVisita()"
+                                    class="bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded hover:bg-gray-300">Cancelar</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="bg-gray-50 p-3 rounded border border-gray-200">
                         <label class="block text-sm font-bold mb-2">Camionetas SICE</label>
@@ -574,15 +600,16 @@
             poblarSelect('prevencionista', 'Seleccione prevencionista...', prevs);
 
             // ── Trabajadores SICE: nómina con checkbox vs. cantidad/desglose ──
-            const trabajadores = getNominaTrabajadores(cfg);
-            const conNomina = !!trabajadores;
+            const listado = getListadoPresentes(cfg);
+            const conNomina = !!listado;
             document.getElementById('bloque-sice-nomina').classList.toggle('hidden', !conNomina);
             document.getElementById('bloque-sice-legacy').classList.toggle('hidden', conNomina);
             if (conNomina) {
-                renderNominaSICE(trabajadores);
+                renderNominaSICE(listado);
             } else {
                 document.getElementById('nomina_sice').innerHTML = '';
             }
+            cerrarFormVisita();
 
             actualizarLabelAST();
         }
@@ -632,28 +659,87 @@
                 p.cargo !== 'SUPERVISOR' && p.cargo.indexOf('PREVENCIONISTA') !== 0);
         }
 
+        /* Visitas: personas fuera de la nómina agregadas a mano para esta
+           jornada (ITO, mandante, contratistas). Van al final del listado. */
+        const visitas = [];
+        let visitaSeq = 0;
+
+        /* Listado completo de presentes = nómina del contrato + visitas.
+           Devuelve null si el contrato no trabaja con nómina. */
+        function getListadoPresentes(cfg) {
+            const trabajadores = getNominaTrabajadores(cfg || getConfigContrato());
+            if (!trabajadores) return null;
+            return trabajadores
+                .map(p => ({ ...p, key: p.rut }))
+                .concat(visitas.map(v => ({ ...v, key: v.id, esVisita: true })));
+        }
+
         /* ── Nómina de trabajadores SICE (listado de presentes) ── */
-        function renderNominaSICE(nomina) {
+        function renderNominaSICE(listado) {
             const cont = document.getElementById('nomina_sice');
-            // Conserva las marcas si se re-renderiza la misma nómina
+            // Conserva las marcas si se re-renderiza el mismo listado
             const marcados = new Set(
-                [...cont.querySelectorAll('.sice-chk')].filter(c => c.checked).map(c => c.dataset.rut)
+                [...cont.querySelectorAll('.sice-chk')].filter(c => c.checked).map(c => c.dataset.key)
             );
             cont.innerHTML = '';
-            nomina.forEach((p, i) => {
-                const lbl = document.createElement('label');
-                lbl.className = 'flex items-start gap-3 p-2 cursor-pointer hover:bg-blue-50 transition';
-                lbl.innerHTML = `
-                    <input type="checkbox" class="sice-chk mt-1 h-5 w-5 shrink-0 accent-blue-700"
-                        data-rut="${p.rut}" data-idx="${i}" onchange="actualizarContadorSICE()">
-                    <span class="flex-1 min-w-0">
-                        <span class="block text-sm font-semibold leading-tight">${i + 1}. ${nombreCompleto(p)}</span>
-                        <span class="block text-xs text-gray-500 leading-tight">${p.rut} · ${p.cargo}</span>
-                    </span>`;
-                if (marcados.has(p.rut)) lbl.querySelector('input').checked = true;
-                cont.appendChild(lbl);
+            listado.forEach((p, i) => {
+                const fila = document.createElement('div');
+                fila.className = 'flex items-start' + (p.esVisita ? ' bg-blue-50' : '');
+                fila.innerHTML = `
+                    <label class="flex flex-1 min-w-0 items-start gap-3 p-2 cursor-pointer hover:bg-blue-100 transition">
+                        <input type="checkbox" class="sice-chk mt-1 h-5 w-5 shrink-0 accent-blue-700"
+                            data-key="${p.key}" data-idx="${i}" onchange="actualizarContadorSICE()">
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-semibold leading-tight">${i + 1}. ${nombreCompleto(p)}${p.esVisita ? ' <span class="text-[10px] bg-blue-700 text-white px-1.5 py-0.5 rounded align-middle">VISITA</span>' : ''}</span>
+                            <span class="block text-xs text-gray-500 leading-tight">${p.rut} · ${p.cargo}</span>
+                        </span>
+                    </label>
+                    ${p.esVisita ? `<button type="button" onclick="eliminarVisita('${p.key}')" title="Quitar visita"
+                        class="shrink-0 w-9 self-stretch text-red-600 font-bold hover:bg-red-100">✕</button>` : ''}`;
+                if (marcados.has(p.key)) fila.querySelector('input').checked = true;
+                cont.appendChild(fila);
             });
             actualizarContadorSICE();
+        }
+
+        function abrirFormVisita() {
+            document.getElementById('form_visita').classList.remove('hidden');
+            document.getElementById('btn_visita').classList.add('hidden');
+            document.getElementById('visita_nombres').focus();
+        }
+
+        function cerrarFormVisita() {
+            document.getElementById('form_visita').classList.add('hidden');
+            document.getElementById('btn_visita').classList.remove('hidden');
+            ['visita_rut', 'visita_cargo', 'visita_nombres', 'visita_apellidos']
+                .forEach(id => { document.getElementById(id).value = ''; });
+        }
+
+        function confirmarVisita() {
+            const val = id => document.getElementById(id).value.trim().toUpperCase();
+            const nombres = val('visita_nombres'), apellidos = val('visita_apellidos');
+            if (!nombres && !apellidos) {
+                alert('Indique al menos el nombre o el apellido de la visita.');
+                document.getElementById('visita_nombres').focus();
+                return;
+            }
+            const id = 'visita-' + (++visitaSeq);
+            visitas.push({
+                id, nombres, apellidos,
+                rut: val('visita_rut') || '—',
+                cargo: val('visita_cargo') || 'VISITA'
+            });
+            cerrarFormVisita();
+            renderNominaSICE(getListadoPresentes());
+            // Si se agrega, es porque está presente: queda marcada.
+            const chk = document.querySelector(`#nomina_sice .sice-chk[data-key="${id}"]`);
+            if (chk) { chk.checked = true; actualizarContadorSICE(); chk.scrollIntoView({ block: 'nearest' }); }
+        }
+
+        function eliminarVisita(id) {
+            const i = visitas.findIndex(v => v.id === id);
+            if (i !== -1) visitas.splice(i, 1);
+            renderNominaSICE(getListadoPresentes());
         }
 
         function marcarTodosSICE(estado) {
@@ -672,10 +758,10 @@
         }
 
         function getNominaSeleccionada() {
-            const trabajadores = getNominaTrabajadores(getConfigContrato());
-            if (!trabajadores) return null;
+            const listado = getListadoPresentes();
+            if (!listado) return null;
             return [...document.querySelectorAll('#nomina_sice .sice-chk:checked')]
-                .map(c => trabajadores[Number(c.dataset.idx)])
+                .map(c => listado[Number(c.dataset.idx)])
                 .filter(Boolean);
         }
 
