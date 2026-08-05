@@ -125,7 +125,7 @@
 
                     <div id="bloque-contrato-metro" class="hidden">
                         <label class="block text-sm font-medium mb-1">Contrato</label>
-                        <select id="contrato_metro"
+                        <select id="contrato_metro" onchange="onContratoChange()"
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione contrato...</option>
                             <option>Suministro del Sistema de Comunicaciones, Extensión Línea 3.</option>
@@ -139,24 +139,11 @@
 
                     <div>
                         <label class="block text-sm font-medium mb-1">Lugar Específico</label>
-                        <select id="lugar_efe"
+                        <select id="lugar_efe" onchange="onLugarEfeChange()"
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
-                            <option value="">Seleccione una estación...</option>
-                            <option>Estación Central</option>
-                            <option>Estación San Bernardo</option>
-                            <option>Estación Rancagua</option>
-                            <option>Estación San Fernando</option>
-                            <option>Estación Curicó</option>
-                            <option>Estación Molina</option>
-                            <option>Estación Talca</option>
-                            <option>Estación San Javier</option>
-                            <option>Estación Linares</option>
-                            <option>Estación Parral</option>
-                            <option>Estación San Carlos</option>
-                            <option>Estación Chillán</option>
-                            <option>Dependencias SICE</option>
-                            <option>Local Técnico</option>
                         </select>
+                        <input type="text" id="lugar_efe_otro" placeholder="Escriba el lugar específico..."
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden mt-2">
                         <input type="text" id="lugar_metro" placeholder='Ej: Metro San Joaquín L5'
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
                         <p id="lugar_placeholder"
@@ -188,18 +175,6 @@
                         <select id="supervisor" required
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione supervisor...</option>
-                            <option>Juan Carlos Rojas</option>
-                            <option>Francisco Gárate</option>
-                            <option>Milton González</option>
-                            <option>Andrés Traslaviña</option>
-                            <option>Guillermo Osorio</option>
-                            <option>Felipe Gálvez</option>
-                            <option>José Villanueva</option>
-                            <option>Álvaro González</option>
-                            <option>Fabián Collao</option>
-                            <option>César González</option>
-                            <option>Francisco Jaramillo</option>
-                            <option>Censorino Rojas</option>
                         </select>
                     </div>
                     <div>
@@ -207,15 +182,6 @@
                         <select id="prevencionista" required
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione prevencionista...</option>
-                            <option>Patricio Pau</option>
-                            <option>Daniel Alarcón</option>
-                            <option>Gonzalo Núñez</option>
-                            <option>Valeria Huichipan</option>
-                            <option>Luis Sepúlveda</option>
-                            <option>Alex Lorca</option>
-                            <option>Javier Erazo</option>
-                            <option>Guillermo Morales</option>
-                            <option>Jaime Silva</option>
                         </select>
                     </div>
                 </div>
@@ -239,7 +205,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-gray-50 p-3 rounded border border-gray-200">
+                    <div id="bloque-sice-legacy" class="bg-gray-50 p-3 rounded border border-gray-200">
                         <label class="block text-sm font-bold mb-2">Trabajadores SICE</label>
                         <div class="grid grid-cols-3 gap-2">
                             <div>
@@ -252,6 +218,26 @@
                                 <input type="text" id="sice_desc" placeholder="Ej: 2 Ing, 1 Sup..."
                                     class="w-full border border-gray-300 p-2 rounded">
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="bloque-sice-nomina" class="bg-gray-50 p-3 rounded border border-gray-200 hidden">
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-bold">Trabajadores SICE presentes</label>
+                            <span id="sice_contador"
+                                class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">0
+                                seleccionados</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Marque a los trabajadores presentes en terreno.</p>
+                        <div class="flex gap-2 mb-2">
+                            <button type="button" onclick="marcarTodosSICE(true)"
+                                class="text-xs bg-blue-700 text-white px-3 py-1 rounded font-semibold hover:bg-blue-800">Marcar
+                                todos</button>
+                            <button type="button" onclick="marcarTodosSICE(false)"
+                                class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded font-semibold hover:bg-gray-300">Limpiar</button>
+                        </div>
+                        <div id="nomina_sice"
+                            class="bg-white border border-gray-300 rounded max-h-80 overflow-y-auto divide-y divide-gray-200">
                         </div>
                     </div>
                     <div class="bg-gray-50 p-3 rounded border border-gray-200">
@@ -286,6 +272,15 @@
                         <h3 class="font-bold text-sm mb-2 text-blue-800">ACTIVIDADES EN TERRENO</h3>
                         <div class="grid grid-cols-2 gap-3" id="grid-acts"></div>
                     </div>
+                    <div>
+                        <h3 class="font-bold text-sm mb-2 text-blue-800">FOTOGRAFÍAS ADICIONALES</h3>
+                        <div class="space-y-3" id="grid-extras"></div>
+                        <button type="button" onclick="agregarFotoExtra()"
+                            class="w-full mt-3 border-2 border-dashed border-blue-400 text-blue-700 font-semibold py-3 rounded hover:bg-blue-50 transition text-sm">
+                            + Agregar fotografía
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">Las fotos sin imagen cargada no se incluyen en el PDF.</p>
+                    </div>
                 </div>
             </section>
 
@@ -313,6 +308,95 @@
     </main>
 
     <script>
+        /* ════════════════════════════════════════════════════════════════
+           NÓMINAS Y CONFIGURACIÓN POR CONTRATO
+           Cada contrato puede definir su propia lista de lugares y su propia
+           nómina de personal. Si un contrato NO define nómina, el formulario
+           usa el comportamiento general (listas completas + cantidad/desglose).
+        ════════════════════════════════════════════════════════════════ */
+
+        // Nómina del contrato EFE (Chillán – Estación Central)
+        const NOMINA_EFE = [
+            { rut: '15.778.064-6', nombres: 'MILTON ANTONIO', apellidos: 'GONZÁLEZ SEPÚLVEDA', cargo: 'SUPERVISOR' },
+            { rut: '25.457.528-3', nombres: 'JUAN CARLOS', apellidos: 'ROJAS SALAZAR', cargo: 'SUPERVISOR' },
+            { rut: '16.520.025-K', nombres: 'FRANCISCO DANIEL', apellidos: 'GARATE PEREZ', cargo: 'SUPERVISOR' },
+            { rut: '12.248.512-9', nombres: 'MAURICIO ALEJANDRO', apellidos: 'CORTÉS LÓPEZ', cargo: 'TÉCNICO' },
+            { rut: '26.269.986-2', nombres: 'EDUARDO CESAR', apellidos: 'MINAYA REYES', cargo: 'TÉCNICO' },
+            { rut: '18.046.031-4', nombres: 'CARLOS MATIAS', apellidos: 'GONZALEZ PARRA', cargo: 'TÉCNICO' },
+            { rut: '14.378.813-6', nombres: 'SERGIO ALEJANDRO', apellidos: 'COFRÉ COFRÉ', cargo: 'TÉCNICO' },
+            { rut: '25.981.340-9', nombres: 'PERCY ROBERTO', apellidos: 'ROBLES SANCHEZ', cargo: 'TÉCNICO' },
+            { rut: '15.901.064-8', nombres: 'CRISTOPHER SEBASTIAN', apellidos: 'HIDALGO', cargo: 'TÉCNICO' },
+            { rut: '17.021.486-2', nombres: 'FRANCISCO ALEJANDRO', apellidos: 'MUÑOZ BUSTOS', cargo: 'TÉCNICO' },
+            { rut: '11.210.733-9', nombres: 'NÉSTOR MANUEL', apellidos: 'FLORES ROMERO', cargo: 'TÉCNICO' },
+            { rut: '17.677.536-K', nombres: 'NICOLÁS ESTEBAN', apellidos: 'JARA GUZMÁN', cargo: 'TÉCNICO' },
+            { rut: '17.677.114-3', nombres: 'RONALD', apellidos: 'RODRÍGUEZ WAJNER', cargo: 'TÉCNICO' },
+            { rut: '10.668.848-6', nombres: 'JUAN CARLOS', apellidos: 'VALENZUELA CASTRO', cargo: 'TÉCNICO' },
+            { rut: '17.859.132-0', nombres: 'PATRICIO IGNACIO', apellidos: 'PAU SALINAS', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '18.925.717-1', nombres: 'GONZALO ANTONIO', apellidos: 'NUÑEZ SANHUEZA', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '19.528.128-9', nombres: 'DANIEL', apellidos: 'ALARCON', cargo: 'PREVENCIONISTA DE RIESGOS' },
+        ];
+
+        const LUGARES_EFE = [
+            'Estación Central', 'Estación San Bernardo', 'Estación Rancagua', 'Estación San Fernando',
+            'Estación Curicó', 'Estación Molina', 'Estación Talca', 'Estación San Javier',
+            'Estación Linares', 'Estación Parral', 'Estación San Carlos', 'Estación Chillán',
+            'Dependencias SICE', 'Local Técnico'
+        ];
+
+        // Nómina del contrato METRO — Línea 7
+        const NOMINA_L7 = [
+            { rut: '12.850.708-6', nombres: 'RICARDO ANDRES', apellidos: 'ARELLANO ZUÑIGA', cargo: 'ADM CONTRATO' },
+            { rut: '22.001.742-7', nombres: 'MIKEL', apellidos: 'NARVARTE IJURCO', cargo: 'ADM CONTRATO' },
+            { rut: '27.218.544-1', nombres: 'JUAN RODOLFO', apellidos: 'GUARDADO CASTILLO', cargo: 'AYUDANTE' },
+            { rut: '8.699.166-7', nombres: 'PABLO ANDRES', apellidos: 'MONTENEGRO ZAMBRANO', cargo: 'COORDINADOR' },
+            { rut: '13.538.949-8', nombres: 'ALEXIS SAMUEL', apellidos: 'RODRIGUEZ RIOS', cargo: 'INGENIERO DE PROYECTO' },
+            { rut: '13.458.659-1', nombres: 'VANESSA OLIVIA', apellidos: 'LARENAS SALINAS', cargo: 'INGENIERO DE PROYECTO' },
+            { rut: '26.098.098-K', nombres: 'CHRISTOPHER SIMPSON', apellidos: 'ALVARADO NIETO', cargo: 'INGENIERO DE PROYECTO' },
+            { rut: '15.667.915-1', nombres: 'FRANCISCO JAVIER', apellidos: 'JARAMILLO PINO', cargo: 'OF TÉCNICA' },
+            { rut: '9.267.025-2', nombres: 'CENSORINO PASCUAL', apellidos: 'ROJAS GONZALEZ', cargo: 'OF TÉCNICA' },
+            { rut: '25.476.961-4', nombres: 'RICHARD ALEXANDER', apellidos: 'VILLALOBOS SANCHEZ', cargo: 'OF TÉCNICA' },
+            { rut: '16.972.155-6', nombres: 'JAIME ANDRES', apellidos: 'SILVA HENRIQUEZ', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '17.577.147-6', nombres: 'GUILLERMO ISRAEL', apellidos: 'MORALES SANCHEZ', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '26.885.600-5', nombres: 'JOSE', apellidos: 'LEAL', cargo: 'PROGRAMADOR PRIMAVERA' },
+            { rut: '11.327.403-4', nombres: 'FABIAN', apellidos: 'COLLAO LAFFERTE', cargo: 'SUPERVISOR' },
+            { rut: '11.876.272-K', nombres: 'CESAR EDUARDO', apellidos: 'GONZALEZ JEREZ', cargo: 'SUPERVISOR' },
+            { rut: '19.752.485-5', nombres: 'JAIME ALONSO', apellidos: 'CASTILLO PEREZ', cargo: 'TÉCNICO' },
+            { rut: '20.057.455-9', nombres: 'ISMAEL DAVID', apellidos: 'TORO ARENAS', cargo: 'TÉCNICO' },
+            { rut: '27.197.321-7', nombres: 'ANGELO', apellidos: 'YATE RENGIFO', cargo: 'TÉCNICO' },
+            { rut: '12.673.093-4', nombres: 'ALFONSO GUSTAVO', apellidos: 'ACEVEDO MUÑOZ', cargo: 'TÉCNICO' },
+            { rut: '20.534.970-7', nombres: 'IGNACIO CRISTHOPER', apellidos: 'AYALA SAEZ', cargo: 'TÉCNICO' },
+        ];
+
+        const CONTRATO_EFE = '"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE';
+        // Debe coincidir EXACTAMENTE con el texto del <option> en #contrato_metro
+        const CONTRATO_L7 = 'Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7 de Metro S.A.';
+
+        // Clave del contrato → configuración. Un contrato sin "lugares" usa el
+        // campo de lugar en texto libre; uno sin "nomina" usa cantidad/desglose.
+        const CONTRATOS = {};
+        CONTRATOS[CONTRATO_EFE] = { lugares: LUGARES_EFE, nomina: NOMINA_EFE };
+        CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7 };
+
+        // Listas generales (contratos sin nómina propia)
+        const SUPERVISORES_GENERAL = [
+            'Juan Carlos Rojas', 'Francisco Gárate', 'Milton González', 'Andrés Traslaviña',
+            'Guillermo Osorio', 'Felipe Gálvez', 'José Villanueva', 'Álvaro González',
+            'Fabián Collao', 'César González', 'Francisco Jaramillo', 'Censorino Rojas'
+        ];
+        const PREVENCIONISTAS_GENERAL = [
+            'Patricio Pau', 'Daniel Alarcón', 'Gonzalo Núñez', 'Valeria Huichipan',
+            'Luis Sepúlveda', 'Alex Lorca', 'Javier Erazo', 'Guillermo Morales', 'Jaime Silva'
+        ];
+
+        // "GONZÁLEZ SEPÚLVEDA" → "González Sepúlveda"
+        function toTitle(s) {
+            return String(s).toLowerCase()
+                .replace(/(^|[\s'’\-])([a-záéíóúñü])/g, (m, sep, ch) => sep + ch.toUpperCase());
+        }
+        function nombreCompleto(p) {
+            return toTitle(p.nombres) + ' ' + toTitle(p.apellidos);
+        }
+
         /* ════════════════════════════════════════════════════════════════
            CONFIGURACIÓN DE FOTOGRAFÍAS
         ════════════════════════════════════════════════════════════════ */
@@ -455,23 +539,170 @@
             const val = document.getElementById('mandante').value;
             document.getElementById('bloque-contrato-efe').classList.toggle('hidden', val !== 'EFE');
             document.getElementById('bloque-contrato-metro').classList.toggle('hidden', val !== 'METRO');
-            document.getElementById('lugar_efe').classList.toggle('hidden', val !== 'EFE');
-            document.getElementById('lugar_metro').classList.toggle('hidden', val !== 'METRO');
-            document.getElementById('lugar_placeholder').classList.toggle('hidden', val !== '');
+            if (val !== 'METRO') document.getElementById('contrato_metro').value = '';
+            onContratoChange();
+        }
+
+        /* Se dispara al cambiar el contrato (o el mandante). Es el ÚNICO punto
+           donde se decide qué listas y qué bloques ve el usuario. */
+        function onContratoChange() {
+            const val = document.getElementById('mandante').value;
+            const cfg = getConfigContrato();
+
+            // ── Lugar específico ──
+            const selLugar = document.getElementById('lugar_efe');
+            const inpOtro = document.getElementById('lugar_efe_otro');
+            const inpMetro = document.getElementById('lugar_metro');
+            const ph = document.getElementById('lugar_placeholder');
+
+            const usaLista = !!(cfg && cfg.lugares);
+            if (usaLista) poblarLugares(selLugar, cfg.lugares);
+            selLugar.classList.toggle('hidden', !usaLista);
+            inpMetro.classList.toggle('hidden', !(val === 'METRO' && !usaLista));
+            ph.classList.toggle('hidden', val !== '');
+            if (!usaLista) { selLugar.value = ''; inpOtro.value = ''; }
+            onLugarEfeChange();
+
+            // ── Personal a cargo ──
+            const sups = cfg && cfg.nomina
+                ? cfg.nomina.filter(p => p.cargo === 'SUPERVISOR').map(nombreCompleto)
+                : SUPERVISORES_GENERAL;
+            const prevs = cfg && cfg.nomina
+                ? cfg.nomina.filter(p => p.cargo.indexOf('PREVENCIONISTA') === 0).map(nombreCompleto)
+                : PREVENCIONISTAS_GENERAL;
+            poblarSelect('supervisor', 'Seleccione supervisor...', sups);
+            poblarSelect('prevencionista', 'Seleccione prevencionista...', prevs);
+
+            // ── Trabajadores SICE: nómina con checkbox vs. cantidad/desglose ──
+            const trabajadores = getNominaTrabajadores(cfg);
+            const conNomina = !!trabajadores;
+            document.getElementById('bloque-sice-nomina').classList.toggle('hidden', !conNomina);
+            document.getElementById('bloque-sice-legacy').classList.toggle('hidden', conNomina);
+            if (conNomina) {
+                renderNominaSICE(trabajadores);
+            } else {
+                document.getElementById('nomina_sice').innerHTML = '';
+            }
+
             actualizarLabelAST();
         }
 
-        function getLugar() {
+        function onLugarEfeChange() {
+            const sel = document.getElementById('lugar_efe');
+            const otro = document.getElementById('lugar_efe_otro');
+            const esOtro = !sel.classList.contains('hidden') && sel.value === 'OTROS';
+            otro.classList.toggle('hidden', !esOtro);
+            if (!esOtro) otro.value = '';
+        }
+
+        function poblarLugares(sel, lugares) {
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">Seleccione una estación...</option>';
+            lugares.forEach(l => {
+                const o = document.createElement('option');
+                o.value = l; o.textContent = l;
+                sel.appendChild(o);
+            });
+            const oOtro = document.createElement('option');
+            oOtro.value = 'OTROS'; oOtro.textContent = 'OTROS (ingresar manualmente)';
+            sel.appendChild(oOtro);
+            if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+        }
+
+        function poblarSelect(id, placeholder, opciones) {
+            const sel = document.getElementById(id);
+            const prev = sel.value;
+            sel.innerHTML = '';
+            const o0 = document.createElement('option');
+            o0.value = ''; o0.textContent = placeholder;
+            sel.appendChild(o0);
+            opciones.forEach(n => {
+                const o = document.createElement('option');
+                o.value = n; o.textContent = n;
+                sel.appendChild(o);
+            });
+            if (prev && opciones.indexOf(prev) !== -1) sel.value = prev;
+        }
+
+        /* Personal que va al listado de presentes: se excluyen supervisores y
+           prevencionistas, porque ya se informan en "2. Personal a Cargo". */
+        function getNominaTrabajadores(cfg) {
+            if (!cfg || !cfg.nomina) return null;
+            return cfg.nomina.filter(p =>
+                p.cargo !== 'SUPERVISOR' && p.cargo.indexOf('PREVENCIONISTA') !== 0);
+        }
+
+        /* ── Nómina de trabajadores SICE (listado de presentes) ── */
+        function renderNominaSICE(nomina) {
+            const cont = document.getElementById('nomina_sice');
+            // Conserva las marcas si se re-renderiza la misma nómina
+            const marcados = new Set(
+                [...cont.querySelectorAll('.sice-chk')].filter(c => c.checked).map(c => c.dataset.rut)
+            );
+            cont.innerHTML = '';
+            nomina.forEach((p, i) => {
+                const lbl = document.createElement('label');
+                lbl.className = 'flex items-start gap-3 p-2 cursor-pointer hover:bg-blue-50 transition';
+                lbl.innerHTML = `
+                    <input type="checkbox" class="sice-chk mt-1 h-5 w-5 shrink-0 accent-blue-700"
+                        data-rut="${p.rut}" data-idx="${i}" onchange="actualizarContadorSICE()">
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm font-semibold leading-tight">${i + 1}. ${nombreCompleto(p)}</span>
+                        <span class="block text-xs text-gray-500 leading-tight">${p.rut} · ${p.cargo}</span>
+                    </span>`;
+                if (marcados.has(p.rut)) lbl.querySelector('input').checked = true;
+                cont.appendChild(lbl);
+            });
+            actualizarContadorSICE();
+        }
+
+        function marcarTodosSICE(estado) {
+            document.querySelectorAll('#nomina_sice .sice-chk').forEach(c => { c.checked = estado; });
+            actualizarContadorSICE();
+        }
+
+        function actualizarContadorSICE() {
+            const total = document.querySelectorAll('#nomina_sice .sice-chk').length;
+            const n = document.querySelectorAll('#nomina_sice .sice-chk:checked').length;
+            const el = document.getElementById('sice_contador');
+            el.textContent = `${n} de ${total} seleccionados`;
+            el.className = n > 0
+                ? 'text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded'
+                : 'text-xs font-semibold bg-gray-200 text-gray-600 px-2 py-1 rounded';
+        }
+
+        function getNominaSeleccionada() {
+            const trabajadores = getNominaTrabajadores(getConfigContrato());
+            if (!trabajadores) return null;
+            return [...document.querySelectorAll('#nomina_sice .sice-chk:checked')]
+                .map(c => trabajadores[Number(c.dataset.idx)])
+                .filter(Boolean);
+        }
+
+        function getContratoKey() {
             const v = document.getElementById('mandante').value;
-            if (v === 'EFE') return document.getElementById('lugar_efe').value;
-            if (v === 'METRO') return document.getElementById('lugar_metro').value.trim();
+            if (v === 'EFE') return CONTRATO_EFE;
+            if (v === 'METRO') return document.getElementById('contrato_metro').value;
+            return '';
+        }
+        function getConfigContrato() {
+            return CONTRATOS[getContratoKey()] || null;
+        }
+
+        function getLugar() {
+            const cfg = getConfigContrato();
+            if (cfg && cfg.lugares) {
+                const sel = document.getElementById('lugar_efe').value;
+                if (sel === 'OTROS') return document.getElementById('lugar_efe_otro').value.trim();
+                return sel;
+            }
+            if (document.getElementById('mandante').value === 'METRO') {
+                return document.getElementById('lugar_metro').value.trim();
+            }
             return '';
         }
         function getContrato() {
-            const v = document.getElementById('mandante').value;
-            if (v === 'EFE') return '"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE';
-            if (v === 'METRO') return document.getElementById('contrato_metro').value;
-            return '';
+            return getContratoKey();
         }
         function getMandanteLabel() {
             const v = document.getElementById('mandante').value;
@@ -492,6 +723,60 @@
             pv.src = obj.dataURL;
             pv.classList.remove('hidden');
             document.getElementById('text_' + key).classList.add('hidden');
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           FOTOGRAFÍAS ADICIONALES (título + imagen, ilimitadas)
+        ════════════════════════════════════════════════════════════════ */
+        const fotosExtra = [];   // conserva el orden de las fotos agregadas
+        let extraSeq = 0;
+
+        function agregarFotoExtra() {
+            const key = 'extra' + (++extraSeq);
+            fotosExtra.push(key);
+            imagenesCargadas[key] = null;
+
+            const div = document.createElement('div');
+            div.id = 'card_' + key;
+            div.className = 'border border-gray-300 rounded p-3 bg-gray-50';
+            div.innerHTML = `
+                <div class="flex items-center gap-2 mb-2">
+                    <input type="text" id="titulo_${key}" placeholder="Título de la fotografía"
+                        class="flex-1 min-w-0 border border-gray-300 p-2 rounded text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                    <button type="button" onclick="eliminarFotoExtra('${key}')" title="Eliminar"
+                        class="shrink-0 w-9 h-9 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>
+                </div>
+                <input type="file" id="foto_${key}" accept="image/*" class="hidden"
+                    onchange="previewImage(event,'preview_${key}','${key}')">
+                <div onclick="document.getElementById('foto_${key}').click()"
+                    class="border-2 border-dashed border-gray-400 rounded h-32 flex items-center justify-center
+                           bg-white overflow-hidden cursor-pointer relative hover:bg-gray-100 transition">
+                    <span id="text_${key}" class="text-xs text-gray-500 px-2 flex flex-col items-center">
+                        <svg class="w-6 h-6 mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Tocar para foto
+                    </span>
+                    <img id="preview_${key}" class="hidden absolute inset-0 w-full h-full object-contain bg-white">
+                </div>`;
+            document.getElementById('grid-extras').appendChild(div);
+            document.getElementById('titulo_' + key).focus();
+        }
+
+        function eliminarFotoExtra(key) {
+            const i = fotosExtra.indexOf(key);
+            if (i !== -1) fotosExtra.splice(i, 1);
+            delete imagenesCargadas[key];
+            const card = document.getElementById('card_' + key);
+            if (card) card.remove();
+        }
+
+        function getFotosExtra() {
+            return fotosExtra.map((key, i) => {
+                const inp = document.getElementById('titulo_' + key);
+                const titulo = inp ? inp.value.trim() : '';
+                return { id: key, label: titulo || `Fotografía adicional ${i + 1}` };
+            });
         }
 
         function formatearHora(timeValue) {
@@ -518,6 +803,7 @@
         const PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
         const CONTENT_W = PAGE_W - MARGIN * 2;          // 180
         const CONTENT_BOTTOM = PAGE_H - MARGIN;         // 282
+        const ALTO_FIRMA = 55;                          // alto reservado al bloque de firma
 
         // Colores
         const C_AZUL = [30, 58, 138];      // títulos / encabezado
@@ -574,6 +860,23 @@
             doc.setFontSize(10);
             doc.text(texto, PAGE_W / 2, y + 4.8, { align: 'center' });
             return y + 7;
+        }
+
+        /* Bloque de firma. Ocupa ALTO_FIRMA mm hacia abajo desde yTop. */
+        function dibujarFirma(doc, yTop, firma, nombrePreve) {
+            const lineaY = yTop + 16 + 26;          // base de la línea de firma
+            placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.line(PAGE_W / 2 - 35, lineaY, PAGE_W / 2 + 35, lineaY);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text((nombrePreve || 'Prevencionista de Riesgos').toUpperCase(), PAGE_W / 2, lineaY + 6, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(...C_GRIS_TXT);
+            doc.text('PREVENCIONISTA DE RIESGOS SICE', PAGE_W / 2, lineaY + 11, { align: 'center' });
         }
 
         async function generarPDF() {
@@ -660,9 +963,21 @@
                 });
 
                 /* ── Tabla: Dotación y recursos ── */
+                // Si el contrato tiene nómina, los trabajadores SICE ya no van
+                // como cantidad/desglose: van en su propia tabla de presentes.
+                const nominaSel = getNominaSeleccionada();
+
                 let yDot = doc.lastAutoTable.finalY + 6;
                 if (yDot + 40 > CONTENT_BOTTOM) { doc.addPage(); yDot = MARGIN; }
                 const tablaDotStart = tituloSeccion(doc, 'DOTACIÓN Y RECURSOS', yDot);
+
+                const dotRows = [
+                    ['N° de trabajadores ITO (CyD)', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value]
+                ];
+                if (!nominaSel) {
+                    dotRows.push(['N° de trabajadores SICE', document.getElementById('sice_cant').value, document.getElementById('sice_desc').value]);
+                }
+                dotRows.push(['Camionetas SICE', document.getElementById('camioneta_cant').value, document.getElementById('camioneta_desc').value]);
 
                 doc.autoTable({
                     startY: tablaDotStart,
@@ -683,35 +998,53 @@
                         2: { cellWidth: CONTENT_W - 100 }
                     },
                     head: [['Ítem', 'Cantidad', 'Desglose / Observaciones']],
-                    body: [
-                        ['N° de trabajadores ITO (CyD)', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value],
-                        ['N° de trabajadores SICE', document.getElementById('sice_cant').value, document.getElementById('sice_desc').value],
-                        ['Camionetas SICE', document.getElementById('camioneta_cant').value, document.getElementById('camioneta_desc').value],
-                    ]
+                    body: dotRows
                 });
 
-                /* ── Bloque de firma ── */
-                let yF = doc.lastAutoTable.finalY;
-                const ALTO_FIRMA = 52;
-                if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
-                const lineaY = yF + 16 + 26;          // base de la línea de firma
-                placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
-                doc.setDrawColor(0, 0, 0);
-                doc.setLineWidth(0.3);
-                doc.line(PAGE_W / 2 - 35, lineaY, PAGE_W / 2 + 35, lineaY);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text((nombrePreve || 'Prevencionista de Riesgos').toUpperCase(), PAGE_W / 2, lineaY + 6, { align: 'center' });
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8.5);
-                doc.setTextColor(...C_GRIS_TXT);
-                doc.text('PREVENCIONISTA DE RIESGOS SICE', PAGE_W / 2, lineaY + 11, { align: 'center' });
+                /* ── Tabla: Nómina de trabajadores SICE presentes ── */
+                if (nominaSel) {
+                    let yNom = doc.lastAutoTable.finalY + 6;
+                    if (yNom + 30 > CONTENT_BOTTOM) { doc.addPage(); yNom = MARGIN; }
+                    const tablaNomStart = tituloSeccion(doc, `TRABAJADORES SICE PRESENTES (${nominaSel.length})`, yNom);
+
+                    doc.autoTable({
+                        startY: tablaNomStart,
+                        margin: { left: MARGIN, right: MARGIN },
+                        tableWidth: CONTENT_W,
+                        theme: 'grid',
+                        styles: {
+                            font: 'helvetica', fontSize: 8.5, valign: 'middle', overflow: 'linebreak',
+                            cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
+                            lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                        },
+                        headStyles: {
+                            fillColor: C_GRIS_FILA, textColor: C_NEGRO, fontStyle: 'bold',
+                            lineColor: C_GRIS_BORDE, lineWidth: 0.1, halign: 'center'
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 12, halign: 'center' },
+                            1: { cellWidth: 30 },
+                            2: { cellWidth: 45 },
+                            3: { cellWidth: 48 },
+                            4: { cellWidth: CONTENT_W - 135, fontSize: 7.5 }
+                        },
+                        head: [['N°', 'RUT', 'Nombres', 'Apellidos', 'Cargo']],
+                        body: nominaSel.length
+                            ? nominaSel.map((p, i) => [i + 1, p.rut, toTitle(p.nombres), toTitle(p.apellidos), p.cargo])
+                            : [[{
+                                content: 'Sin trabajadores SICE registrados.',
+                                colSpan: 5,
+                                styles: { halign: 'center', textColor: C_GRIS_TXT }
+                            }]]
+                    });
+                }
 
                 /* ── Páginas de evidencia fotográfica (una por foto) ── */
                 const G_DOC = 'EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN';
                 const G_ACT = 'EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO';
                 const astLabel = (mandante === 'EFE') ? '1. HCR' : '1. AST';
+                // Solo se imprimen las fotos efectivamente cargadas: las casillas
+                // vacías ya NO generan una página "Sin fotografía".
                 const PHOTOS = [
                     { id: 'ast', group: G_DOC, label: astLabel },
                     { id: 'charla', group: G_DOC, label: '2. Charla Operacional 5 Minutos' },
@@ -721,10 +1054,13 @@
                     { id: 'act2', group: G_ACT, label: 'Actividad 2' },
                     { id: 'act3', group: G_ACT, label: 'Actividad 3' },
                     { id: 'act4', group: G_ACT, label: 'Actividad 4' },
-                ];
+                ]
+                    .concat(getFotosExtra().map(f => ({ id: f.id, group: G_ACT, label: f.label })))
+                    .filter(p => imagenesCargadas[p.id] && imagenesCargadas[p.id].dataURL);
 
-                PHOTOS.forEach(p => {
+                PHOTOS.forEach((p, i) => {
                     doc.addPage();
+                    const esUltima = (i === PHOTOS.length - 1);
 
                     // Barra de título
                     doc.setFillColor(...C_AZUL_CLARO);
@@ -739,23 +1075,27 @@
                     doc.setFontSize(8.5);
                     doc.text(p.label, PAGE_W / 2, MARGIN + 10, { align: 'center' });
 
-                    // Área de imagen (recuadro)
+                    // Área de imagen (recuadro). En la última foto se reduce el alto
+                    // para dejar el espacio exacto de la firma, que cierra el documento.
                     const ay = MARGIN + 16;
-                    const ah = CONTENT_BOTTOM - ay;
+                    const ah = CONTENT_BOTTOM - ay - (esUltima ? ALTO_FIRMA : 0);
                     doc.setDrawColor(...C_GRIS_BORDE);
                     doc.setLineWidth(0.2);
                     doc.rect(MARGIN, ay, CONTENT_W, ah, 'S');
 
-                    const im = imagenesCargadas[p.id];
-                    if (im && im.dataURL) {
-                        placeContain(doc, im, MARGIN + 2, ay + 2, CONTENT_W - 4, ah - 4, 'c', 'm');
-                    } else {
-                        doc.setTextColor(...C_GRIS_BORDE);
-                        doc.setFont('helvetica', 'normal');
-                        doc.setFontSize(12);
-                        doc.text('Sin fotografía', PAGE_W / 2, ay + ah / 2, { align: 'center' });
-                    }
+                    placeContain(doc, imagenesCargadas[p.id], MARGIN + 2, ay + 2, CONTENT_W - 4, ah - 4, 'c', 'm');
+
+                    if (esUltima) dibujarFirma(doc, ay + ah, firma, nombrePreve);
                 });
+
+                /* ── Firma sin evidencia fotográfica ──
+                   Si no se cargó ninguna foto, la firma cierra el documento justo
+                   después de las tablas (saltando de página solo si no cabe). */
+                if (PHOTOS.length === 0) {
+                    let yF = doc.lastAutoTable.finalY;
+                    if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
+                    dibujarFirma(doc, yF, firma, nombrePreve);
+                }
 
                 /* ── Guardar ── */
                 const [y, m, d] = fechaB.split('-');
@@ -770,6 +1110,21 @@
                 alert('Error al generar el PDF. Intenta nuevamente.');
             }
         }
+
+        /* ── Estado inicial del formulario ── */
+        onMandanteChange();
+
+        // La configuración se indexa por el texto del contrato. Si alguien edita
+        // un <option> y deja de calzar, la nómina desaparecería sin aviso: esto
+        // lo delata en consola apenas se abre la página.
+        (function verificarContratos() {
+            const opciones = [...document.querySelectorAll('#contrato_metro option')].map(o => o.value);
+            Object.keys(CONTRATOS).forEach(clave => {
+                if (clave !== CONTRATO_EFE && opciones.indexOf(clave) === -1) {
+                    console.error('Contrato configurado sin <option> que coincida:', clave);
+                }
+            });
+        })();
     </script>
 </body>
 
