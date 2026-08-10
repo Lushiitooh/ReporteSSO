@@ -390,6 +390,11 @@
             nombre: 'AB INGENIERÍA ELÉCTRICA',
             abrev: 'AB',
             logo: 'ab',                 // clave en el objeto `logos`
+            // Caja propia en el encabezado: el logo es casi cuadrado, así que
+            // necesita más alto que la caja apaisada por defecto (42 × 14).
+            // Termina en y=26, igual que el logo SICE, y deja aire hasta la
+            // línea azul del encabezado (y=29).
+            logoBox: { y: 7, w: 34, h: 19 },
             nomina: NOMINA_AB
         };
 
@@ -990,7 +995,8 @@
             const der = contratista
                 ? logos.sice
                 : (mandante === 'METRO' ? logos.metro : logos.efe);
-            placeContain(doc, izq, MARGIN, 12, 42, 14, 'l', 'm');
+            const box = (contratista && contratista.logoBox) || {};
+            placeContain(doc, izq, MARGIN, box.y || 12, box.w || 42, box.h || 14, 'l', 'm');
             placeContain(doc, der, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
 
             // Título central
