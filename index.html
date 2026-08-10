@@ -137,6 +137,18 @@
                         </select>
                     </div>
 
+                    <div id="bloque-contratista" class="hidden">
+                        <label
+                            class="flex items-center gap-3 p-3 border border-blue-300 rounded bg-blue-50 cursor-pointer hover:bg-blue-100 transition">
+                            <input type="checkbox" id="es_contratista" onchange="onContratistaChange()"
+                                class="h-5 w-5 shrink-0 accent-blue-700">
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-sm font-semibold">Empresa Contratista</span>
+                                <span id="txt_contratista" class="block text-xs text-gray-600"></span>
+                            </span>
+                        </label>
+                    </div>
+
                     <div>
                         <label class="block text-sm font-medium mb-1">Lugar Específico</label>
                         <select id="lugar_efe" onchange="onLugarEfeChange()"
@@ -223,7 +235,7 @@
 
                     <div id="bloque-sice-nomina" class="bg-gray-50 p-3 rounded border border-gray-200 hidden">
                         <div class="flex justify-between items-center mb-1">
-                            <label class="block text-sm font-bold">Trabajadores SICE presentes</label>
+                            <label class="block text-sm font-bold" id="lbl_sice_nomina">Trabajadores SICE presentes</label>
                             <span id="sice_contador"
                                 class="text-xs font-semibold bg-blue-100 text-blue-800 px-2 py-1 rounded">0
                                 seleccionados</span>
@@ -267,7 +279,7 @@
                         </div>
                     </div>
                     <div class="bg-gray-50 p-3 rounded border border-gray-200">
-                        <label class="block text-sm font-bold mb-2">Camionetas SICE</label>
+                        <label class="block text-sm font-bold mb-2" id="lbl_camionetas">Camionetas SICE</label>
                         <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="text-xs text-gray-500">Cantidad</label>
@@ -362,6 +374,25 @@
             { rut: '19.528.128-9', nombres: 'DANIEL', apellidos: 'ALARCON', cargo: 'PREVENCIONISTA DE RIESGOS' },
         ];
 
+        // Nómina de AB Ingeniería Eléctrica, contratista del contrato EFE
+        const NOMINA_AB = [
+            { rut: '19.927.371-K', nombres: 'BERNABE', apellidos: 'CANDIA VILLAGRÁN', cargo: 'SUPERVISOR' },
+            { rut: '19.474.487-0', nombres: 'DIEGO', apellidos: 'SANTANDER MONDACA', cargo: 'ELECTRICISTA' },
+            { rut: '22.102.947-K', nombres: 'BENJAMÍN', apellidos: 'JARA VILLAGRÁN', cargo: 'ELECTRICISTA' },
+            { rut: '20.069.590-9', nombres: 'JONATTAN', apellidos: 'ROJAS JARA', cargo: 'ELECTRICISTA' },
+            { rut: '17.824.992-4', nombres: 'CONSTANZA', apellidos: 'FIGUEROA SEPULVEDA', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '16.457.367-2', nombres: 'LUIS', apellidos: 'GONZALEZ BARRIOS', cargo: 'ELECTRICISTA' },
+            { rut: '18.752.077-0', nombres: 'FABIAN', apellidos: 'SUAZO CARVAJAL', cargo: 'ELECTRICISTA' },
+            { rut: '18.779.992-9', nombres: 'LUIS', apellidos: 'CARRASCO ZUÑIGA', cargo: 'SUPERVISOR' },
+        ];
+
+        const CONTRATISTA_AB = {
+            nombre: 'AB INGENIERÍA ELÉCTRICA',
+            abrev: 'AB',
+            logo: 'ab',                 // clave en el objeto `logos`
+            nomina: NOMINA_AB
+        };
+
         const LUGARES_EFE = [
             'Estación Central', 'Estación San Bernardo', 'Estación Rancagua', 'Estación San Fernando',
             'Estación Curicó', 'Estación Molina', 'Estación Talca', 'Estación San Javier',
@@ -400,7 +431,7 @@
         // Clave del contrato → configuración. Un contrato sin "lugares" usa el
         // campo de lugar en texto libre; uno sin "nomina" usa cantidad/desglose.
         const CONTRATOS = {};
-        CONTRATOS[CONTRATO_EFE] = { lugares: LUGARES_EFE, nomina: NOMINA_EFE };
+        CONTRATOS[CONTRATO_EFE] = { lugares: LUGARES_EFE, nomina: NOMINA_EFE, contratista: CONTRATISTA_AB };
         CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7 };
 
         // Listas generales (contratos sin nómina propia)
@@ -485,11 +516,12 @@
         }
 
         /* ── Pre-carga de logos (una sola vez al abrir la página) ── */
-        const logos = { sice: null, efe: null, metro: null };
+        const logos = { sice: null, efe: null, metro: null, ab: null };
         const logosReady = Promise.all([
             loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
             loadImageObj('logo-efe.png', { png: true, maxSide: 600 }).then(o => logos.efe = o),
             loadImageObj('logo-metro.png', { png: true, maxSide: 600 }).then(o => logos.metro = o),
+            loadImageObj('logo-ab.png', { png: true, maxSide: 600 }).then(o => logos.ab = o),
         ]);
 
         /* ════════════════════════════════════════════════════════════════
@@ -571,9 +603,41 @@
 
         /* Se dispara al cambiar el contrato (o el mandante). Es el ÚNICO punto
            donde se decide qué listas y qué bloques ve el usuario. */
+        function onContratistaChange() { onContratoChange(); }
+
+        /* Contratista vigente, o null si el contrato no tiene o no está marcada. */
+        function getContratista() {
+            const cfg = getConfigContrato();
+            const chk = document.getElementById('es_contratista');
+            return (cfg && cfg.contratista && chk && chk.checked) ? cfg.contratista : null;
+        }
+
+        /* Nómina en uso: la de la contratista si está activa, si no la del contrato. */
+        function getNominaVigente() {
+            const c = getContratista();
+            if (c) return c.nomina;
+            const cfg = getConfigContrato();
+            return cfg ? cfg.nomina : null;
+        }
+
+        /* Empresa a la que pertenece el personal informado (para rotular). */
+        function getEmpresaPersonal() {
+            const c = getContratista();
+            return c ? { nombre: c.nombre, abrev: c.abrev } : { nombre: 'SICE', abrev: 'SICE' };
+        }
+
         function onContratoChange() {
             const val = document.getElementById('mandante').value;
             const cfg = getConfigContrato();
+
+            // ── Empresa contratista (solo contratos que la tengan definida) ──
+            const boxContratista = document.getElementById('bloque-contratista');
+            const chkContratista = document.getElementById('es_contratista');
+            const ofreceContratista = !!(cfg && cfg.contratista);
+            boxContratista.classList.toggle('hidden', !ofreceContratista);
+            if (!ofreceContratista) chkContratista.checked = false;
+            else document.getElementById('txt_contratista').textContent =
+                'Marque si los trabajos los ejecuta ' + cfg.contratista.nombre;
 
             // ── Lugar específico ──
             const selLugar = document.getElementById('lugar_efe');
@@ -590,17 +654,18 @@
             onLugarEfeChange();
 
             // ── Personal a cargo ──
-            const sups = cfg && cfg.nomina
-                ? cfg.nomina.filter(p => p.cargo === 'SUPERVISOR').map(nombreCompleto)
+            const nomina = getNominaVigente();
+            const sups = nomina
+                ? nomina.filter(p => p.cargo === 'SUPERVISOR').map(nombreCompleto)
                 : SUPERVISORES_GENERAL;
-            const prevs = cfg && cfg.nomina
-                ? cfg.nomina.filter(p => p.cargo.indexOf('PREVENCIONISTA') === 0).map(nombreCompleto)
+            const prevs = nomina
+                ? nomina.filter(p => p.cargo.indexOf('PREVENCIONISTA') === 0).map(nombreCompleto)
                 : PREVENCIONISTAS_GENERAL;
             poblarSelect('supervisor', 'Seleccione supervisor...', sups);
             poblarSelect('prevencionista', 'Seleccione prevencionista...', prevs);
 
-            // ── Trabajadores SICE: nómina con checkbox vs. cantidad/desglose ──
-            const listado = getListadoPresentes(cfg);
+            // ── Trabajadores: nómina con checkbox vs. cantidad/desglose ──
+            const listado = getListadoPresentes();
             const conNomina = !!listado;
             document.getElementById('bloque-sice-nomina').classList.toggle('hidden', !conNomina);
             document.getElementById('bloque-sice-legacy').classList.toggle('hidden', conNomina);
@@ -610,6 +675,11 @@
                 document.getElementById('nomina_sice').innerHTML = '';
             }
             cerrarFormVisita();
+
+            // ── Rótulos que dependen de la empresa que ejecuta ──
+            const emp = getEmpresaPersonal();
+            document.getElementById('lbl_sice_nomina').textContent = `Trabajadores ${emp.abrev} presentes`;
+            document.getElementById('lbl_camionetas').textContent = `Camionetas ${emp.abrev}`;
 
             actualizarLabelAST();
         }
@@ -653,9 +723,10 @@
 
         /* Personal que va al listado de presentes: se excluyen supervisores y
            prevencionistas, porque ya se informan en "2. Personal a Cargo". */
-        function getNominaTrabajadores(cfg) {
-            if (!cfg || !cfg.nomina) return null;
-            return cfg.nomina.filter(p =>
+        function getNominaTrabajadores() {
+            const nomina = getNominaVigente();
+            if (!nomina) return null;
+            return nomina.filter(p =>
                 p.cargo !== 'SUPERVISOR' && p.cargo.indexOf('PREVENCIONISTA') !== 0);
         }
 
@@ -666,8 +737,8 @@
 
         /* Listado completo de presentes = nómina del contrato + visitas.
            Devuelve null si el contrato no trabaja con nómina. */
-        function getListadoPresentes(cfg) {
-            const trabajadores = getNominaTrabajadores(cfg || getConfigContrato());
+        function getListadoPresentes() {
+            const trabajadores = getNominaTrabajadores();
             if (!trabajadores) return null;
             return trabajadores
                 .map(p => ({ ...p, key: p.rut }))
@@ -912,11 +983,15 @@
             doc.addImage(im.dataURL, fmt, dx, dy, dw, dh);
         }
 
-        function dibujarEncabezado(doc, mandante) {
-            // Logos (ajustados por proporción dentro de su caja)
-            placeContain(doc, logos.sice, MARGIN, 12, 42, 14, 'l', 'm');
-            const mLogo = (mandante === 'METRO') ? logos.metro : logos.efe;
-            placeContain(doc, mLogo, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
+        function dibujarEncabezado(doc, mandante, contratista) {
+            // Logos (ajustados por proporción dentro de su caja).
+            // Con contratista: ella a la izquierda y SICE a la derecha.
+            const izq = contratista ? logos[contratista.logo] : logos.sice;
+            const der = contratista
+                ? logos.sice
+                : (mandante === 'METRO' ? logos.metro : logos.efe);
+            placeContain(doc, izq, MARGIN, 12, 42, 14, 'l', 'm');
+            placeContain(doc, der, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
 
             // Título central
             doc.setTextColor(...C_AZUL);
@@ -949,7 +1024,7 @@
         }
 
         /* Bloque de firma. Ocupa ALTO_FIRMA mm hacia abajo desde yTop. */
-        function dibujarFirma(doc, yTop, firma, nombrePreve) {
+        function dibujarFirma(doc, yTop, firma, nombrePreve, empresa) {
             const lineaY = yTop + 16 + 26;          // base de la línea de firma
             placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
             doc.setDrawColor(0, 0, 0);
@@ -962,7 +1037,7 @@
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
             doc.setTextColor(...C_GRIS_TXT);
-            doc.text('PREVENCIONISTA DE RIESGOS SICE', PAGE_W / 2, lineaY + 11, { align: 'center' });
+            doc.text('PREVENCIONISTA DE RIESGOS ' + (empresa || 'SICE'), PAGE_W / 2, lineaY + 11, { align: 'center' });
         }
 
         async function generarPDF() {
@@ -994,12 +1069,17 @@
                 doc.setProperties({ title: 'Reporte Diario SSO - SICE' });
 
                 /* ── Encabezado ── */
-                dibujarEncabezado(doc, mandante);
+                const contratista = getContratista();
+                const emp = getEmpresaPersonal();
+                dibujarEncabezado(doc, mandante, contratista);
 
                 /* ── Tabla: Información general ── */
                 const nombrePreve = document.getElementById('prevencionista').value;
                 const infoRows = [
                     ['Empresa', 'SICE AGENCIA CHILE S.A.'],
+                ];
+                if (contratista) infoRows.push(['Empresa Contratista', contratista.nombre]);
+                infoRows.push(
                     ['Empresa Mandante', getMandanteLabel()],
                     ['Fecha de actividades', formatearFecha(fechaB)],
                     ['Horario de ingreso', formatearHora(hIng)],
@@ -1008,7 +1088,7 @@
                     ['Lugar específico', lugar],
                     ['Trabajos realizados', document.getElementById('trabajos').value || 'Sin descripción.'],
                     ['Observaciones de Prevención', document.getElementById('observaciones').value || 'Sin observaciones.'],
-                ];
+                );
 
                 doc.autoTable({
                     startY: 34,
@@ -1043,7 +1123,7 @@
                         1: { cellWidth: CONTENT_W - 55 }
                     },
                     body: [
-                        ['Supervisor SICE', document.getElementById('supervisor').value || 'No especificado'],
+                        [`Supervisor ${emp.abrev}`, document.getElementById('supervisor').value || 'No especificado'],
                         ['Prevencionista de Riesgos', nombrePreve || 'No especificado'],
                     ]
                 });
@@ -1061,9 +1141,9 @@
                     ['N° de trabajadores ITO (CyD)', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value]
                 ];
                 if (!nominaSel) {
-                    dotRows.push(['N° de trabajadores SICE', document.getElementById('sice_cant').value, document.getElementById('sice_desc').value]);
+                    dotRows.push([`N° de trabajadores ${emp.abrev}`, document.getElementById('sice_cant').value, document.getElementById('sice_desc').value]);
                 }
-                dotRows.push(['Camionetas SICE', document.getElementById('camioneta_cant').value, document.getElementById('camioneta_desc').value]);
+                dotRows.push([`Camionetas ${emp.abrev}`, document.getElementById('camioneta_cant').value, document.getElementById('camioneta_desc').value]);
 
                 doc.autoTable({
                     startY: tablaDotStart,
@@ -1091,7 +1171,7 @@
                 if (nominaSel) {
                     let yNom = doc.lastAutoTable.finalY + 6;
                     if (yNom + 30 > CONTENT_BOTTOM) { doc.addPage(); yNom = MARGIN; }
-                    const tablaNomStart = tituloSeccion(doc, `TRABAJADORES SICE PRESENTES (${nominaSel.length})`, yNom);
+                    const tablaNomStart = tituloSeccion(doc, `TRABAJADORES ${emp.nombre} PRESENTES (${nominaSel.length})`, yNom);
 
                     doc.autoTable({
                         startY: tablaNomStart,
@@ -1171,7 +1251,7 @@
 
                     placeContain(doc, imagenesCargadas[p.id], MARGIN + 2, ay + 2, CONTENT_W - 4, ah - 4, 'c', 'm');
 
-                    if (esUltima) dibujarFirma(doc, ay + ah, firma, nombrePreve);
+                    if (esUltima) dibujarFirma(doc, ay + ah, firma, nombrePreve, emp.nombre);
                 });
 
                 /* ── Firma sin evidencia fotográfica ──
@@ -1180,7 +1260,7 @@
                 if (PHOTOS.length === 0) {
                     let yF = doc.lastAutoTable.finalY;
                     if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
-                    dibujarFirma(doc, yF, firma, nombrePreve);
+                    dibujarFirma(doc, yF, firma, nombrePreve, emp.nombre);
                 }
 
                 /* ── Guardar ── */
