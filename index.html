@@ -429,15 +429,53 @@
             { rut: '20.534.970-7', nombres: 'IGNACIO CRISTHOPER', apellidos: 'AYALA SAEZ', cargo: 'TÉCNICO' },
         ];
 
+        // Nómina del contrato METRO — Mantenimiento Línea 6 y Línea 3
+        const NOMINA_L63 = [
+            { rut: '19.275.154-3', nombres: 'FELIPE IGNACIO', apellidos: 'TOLEDO MELLA', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '19.315.383-6', nombres: 'JEREMY DANIEL', apellidos: 'VEGA GUAJARDO', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '13.975.846-3', nombres: 'JORGE ANTONIO', apellidos: 'SARMIENTO SEGURA', cargo: 'JEFE MANTENIMIENTO' },
+            { rut: '21.388.487-5', nombres: 'MATIAS', apellidos: 'VILLAROEL PALMA', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '13.916.042-8', nombres: 'OSCAR ORLANDO', apellidos: 'CORREA RIVERA', cargo: 'CONTROL DOCUMENTAL' },
+            { rut: '15.437.428-0', nombres: 'CARLOS MARCELO', apellidos: 'CABEZA MENARES', cargo: 'REPRESENTANTE TÉCNICO' },
+            { rut: '17.875.299-5', nombres: 'IGNACIO PATRICIO', apellidos: 'ÁLVAREZ NIETO', cargo: 'RESP. TRABAJOS NOCTURNOS' },
+            { rut: '20.424.875-3', nombres: 'FELIPE IGNACIO', apellidos: 'GÁLVEZ DIAZ', cargo: 'SUPERVISOR DÍA' },
+            { rut: '18.540.384-K', nombres: 'ÁLVARO SEBASTIÁN', apellidos: 'GONZÁLEZ ARRIAGADA', cargo: 'RESP. TRABAJOS NOCTURNOS' },
+            { rut: '15.706.829-6', nombres: 'ALDO JOSÉ', apellidos: 'LOYOLA LOYOLA', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '17.053.411-5', nombres: 'ANTONIO ISAAC', apellidos: 'NARVÁEZ SOTO', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '19.803.565-3', nombres: 'FRANCISCO JAVIER', apellidos: 'SALAZAR LUNA', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '20.311.950-K', nombres: 'JORGE ANDRÉS', apellidos: 'VALDÉS SOTO', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '20.604.489-6', nombres: 'CRISTIÁN IGNACIO', apellidos: 'ADASME GONZÁLEZ', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '18.354.645-7', nombres: 'JAVIER IGNACIO', apellidos: 'ERAZO GODOY', cargo: 'PREVENCIONISTA DE RIESGOS' },
+            { rut: '21.062.837-1', nombres: 'IGNACIO', apellidos: 'MONTENEGRO', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '14.372.861-7', nombres: 'JACQUELINE', apellidos: 'PARRA DIAZ', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '22.703.842-K', nombres: 'MIGUEL', apellidos: 'SANTILLAN OLGUIN', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '26.720.944-8', nombres: 'JOSE', apellidos: 'VILLANUEVA CHAVEZ', cargo: 'RESP. TRABAJOS NOCTURNOS' },
+            { rut: '19.455.544-1', nombres: 'FELIPE', apellidos: 'SAN JUAN TRONCOSO', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '25.450.545-5', nombres: 'MICHELSON JOSUE', apellidos: 'MONTAÑEZ CHAVEZ', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '21.820.617-4', nombres: 'JOHANS JAVIER', apellidos: 'VALLEJOS PIZARRO', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '17.879.874-7', nombres: 'JAVIER', apellidos: 'BARRUETO CONTRERAS', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '12.879.987-2', nombres: 'PABLO', apellidos: 'NUÑEZ COFRE', cargo: 'INGENIERO DE MANTENIMIENTO' },
+            { rut: '21.237.901-8', nombres: 'CRISTOBAL', apellidos: 'SALAZAR FICA', cargo: 'TÉCNICO MANTENIMIENTO' },
+            { rut: '12.558.504-3', nombres: 'OSCAR', apellidos: 'RODRIGUEZ CABELLO', cargo: 'INGENIERO DE MANTENIMIENTO' },
+            { rut: '22.098.481-8', nombres: 'FRANCISCO', apellidos: 'LEIVA PARADA', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '17.150.345-0', nombres: 'FELIPE', apellidos: 'NEVENS MOYA', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '21.959.579-4', nombres: 'ALEXIS', apellidos: 'TAPIA CATALAN', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '17.751.191-9', nombres: 'FERNANDO', apellidos: 'LEIVA MENARES', cargo: 'APOYO NIVEL 2' },
+            { rut: '20.054.374-2', nombres: 'DIEGO', apellidos: 'CORREA ZENTENO', cargo: 'TÉCNICO MONTAJISTA' },
+            { rut: '20.888.377-1', nombres: 'CRISTOBAL', apellidos: 'BALCAZAR ACEVEDO', cargo: 'APOYO NIVEL 2' },
+        ];
+
         const CONTRATO_EFE = '"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE';
         // Debe coincidir EXACTAMENTE con el texto del <option> en #contrato_metro
         const CONTRATO_L7 = 'Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7 de Metro S.A.';
+        const CONTRATO_L63 = 'Mantenimiento de Comunicaciones Línea 6 y Línea 3.';
 
         // Clave del contrato → configuración. Un contrato sin "lugares" usa el
         // campo de lugar en texto libre; uno sin "nomina" usa cantidad/desglose.
         const CONTRATOS = {};
         CONTRATOS[CONTRATO_EFE] = { lugares: LUGARES_EFE, nomina: NOMINA_EFE, contratista: CONTRATISTA_AB };
         CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7 };
+        CONTRATOS[CONTRATO_L63] = { nomina: NOMINA_L63 };
 
         // Listas generales (contratos sin nómina propia)
         const SUPERVISORES_GENERAL = [
@@ -449,6 +487,17 @@
             'Patricio Pau', 'Daniel Alarcón', 'Gonzalo Núñez', 'Valeria Huichipan',
             'Luis Sepúlveda', 'Alex Lorca', 'Javier Erazo', 'Guillermo Morales', 'Jaime Silva'
         ];
+
+        /* Roles que NO van al listado de presentes porque se informan aparte en
+           "2. Personal a Cargo". Se comparan por prefijo para admitir variantes
+           por contrato ("SUPERVISOR DÍA", "RESP. TRABAJOS NOCTURNOS", etc.). */
+        const CARGOS_SUPERVISION = ['SUPERVISOR', 'RESP. TRABAJOS NOCTURNOS'];
+        function esSupervisor(cargo) {
+            return CARGOS_SUPERVISION.some(c => cargo.indexOf(c) === 0);
+        }
+        function esPrevencionista(cargo) {
+            return cargo.indexOf('PREVENCIONISTA') === 0;
+        }
 
         // "GONZÁLEZ SEPÚLVEDA" → "González Sepúlveda"
         function toTitle(s) {
@@ -464,6 +513,8 @@
         ════════════════════════════════════════════════════════════════ */
         const FOTO_CONFIG = [
             { id: 'ast', label: '1. AST', tipo: 'doc' },
+            // Segunda cara del AST: solo aplica a METRO (el HCR de EFE es una hoja)
+            { id: 'ast2', label: '1. AST (Cara 2)', tipo: 'doc' },
             { id: 'charla', label: '2. Charla 5 Min', tipo: 'doc' },
             { id: 'chk1', label: '3. Check List 1', tipo: 'doc' },
             { id: 'chk2', label: '4. Check List 2', tipo: 'doc' },
@@ -536,6 +587,7 @@
             const cont = document.getElementById(contenedorId);
             FOTO_CONFIG.filter(c => c.tipo === tipo).forEach(cfg => {
                 const div = document.createElement('div');
+                div.id = 'slot_' + cfg.id;
                 div.className = 'text-center';
                 div.innerHTML = `
                 <label class="block text-xs font-semibold mb-1 truncate" id="label_${cfg.id}_ui">${cfg.label}</label>
@@ -559,10 +611,18 @@
         crearGrilla('doc', 'grid-docs');
         crearGrilla('act', 'grid-acts');
 
+        /* En METRO el AST tiene dos caras (dos casillas); en EFE el documento
+           equivalente es el HCR, de una sola hoja. */
         function actualizarLabelAST() {
             const mandante = document.getElementById('mandante').value;
+            const esMetro = mandante === 'METRO';
             const labelUI = document.getElementById('label_ast_ui');
-            if (labelUI) labelUI.innerText = (mandante === 'EFE') ? '1. HCR' : '1. AST';
+            const slot2 = document.getElementById('slot_ast2');
+            if (labelUI) {
+                labelUI.innerText = (mandante === 'EFE') ? '1. HCR'
+                    : (esMetro ? '1. AST (Cara 1)' : '1. AST');
+            }
+            if (slot2) slot2.classList.toggle('hidden', !esMetro);
         }
 
         /* ════════════════════════════════════════════════════════════════
@@ -661,10 +721,10 @@
             // ── Personal a cargo ──
             const nomina = getNominaVigente();
             const sups = nomina
-                ? nomina.filter(p => p.cargo === 'SUPERVISOR').map(nombreCompleto)
+                ? nomina.filter(p => esSupervisor(p.cargo)).map(nombreCompleto)
                 : SUPERVISORES_GENERAL;
             const prevs = nomina
-                ? nomina.filter(p => p.cargo.indexOf('PREVENCIONISTA') === 0).map(nombreCompleto)
+                ? nomina.filter(p => esPrevencionista(p.cargo)).map(nombreCompleto)
                 : PREVENCIONISTAS_GENERAL;
             poblarSelect('supervisor', 'Seleccione supervisor...', sups);
             poblarSelect('prevencionista', 'Seleccione prevencionista...', prevs);
@@ -731,8 +791,7 @@
         function getNominaTrabajadores() {
             const nomina = getNominaVigente();
             if (!nomina) return null;
-            return nomina.filter(p =>
-                p.cargo !== 'SUPERVISOR' && p.cargo.indexOf('PREVENCIONISTA') !== 0);
+            return nomina.filter(p => !esSupervisor(p.cargo) && !esPrevencionista(p.cargo));
         }
 
         /* Visitas: personas fuera de la nómina agregadas a mano para esta
@@ -1214,11 +1273,15 @@
                 /* ── Páginas de evidencia fotográfica (una por foto) ── */
                 const G_DOC = 'EVIDENCIA FOTOGRÁFICA — DOCUMENTACIÓN';
                 const G_ACT = 'EVIDENCIA FOTOGRÁFICA — ACTIVIDADES EN TERRENO';
-                const astLabel = (mandante === 'EFE') ? '1. HCR' : '1. AST';
+                const esMetro = mandante === 'METRO';
+                const astLabel = (mandante === 'EFE') ? '1. HCR'
+                    : (esMetro ? '1. AST (Cara 1)' : '1. AST');
                 // Solo se imprimen las fotos efectivamente cargadas: las casillas
                 // vacías ya NO generan una página "Sin fotografía".
                 const PHOTOS = [
                     { id: 'ast', group: G_DOC, label: astLabel },
+                    // La segunda cara del AST solo existe en METRO
+                    ...(esMetro ? [{ id: 'ast2', group: G_DOC, label: '1. AST (Cara 2)' }] : []),
                     { id: 'charla', group: G_DOC, label: '2. Charla Operacional 5 Minutos' },
                     { id: 'chk1', group: G_DOC, label: '3. Check List 1' },
                     { id: 'chk2', group: G_DOC, label: '4. Check List 2' },
