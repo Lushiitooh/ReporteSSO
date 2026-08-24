@@ -147,6 +147,9 @@
                                 <span id="txt_contratista" class="block text-xs text-gray-600"></span>
                             </span>
                         </label>
+                        <select id="sel_contratista" onchange="onContratistaChange()"
+                            class="w-full mt-2 border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50 hidden">
+                        </select>
                     </div>
 
                     <div>
@@ -387,7 +390,9 @@
         ];
 
         const CONTRATISTA_AB = {
+            id: 'ab',
             nombre: 'AB INGENIERÍA ELÉCTRICA',
+            razonSocial: 'AB INGENIERÍA ELÉCTRICA',
             abrev: 'AB',
             logo: 'ab',                 // clave en el objeto `logos`
             // Caja propia en el encabezado: el logo es casi cuadrado, así que
@@ -396,6 +401,25 @@
             // línea azul del encabezado (y=29).
             logoBox: { y: 7, w: 34, h: 19 },
             nomina: NOMINA_AB
+        };
+
+        // Nómina de IHB (Inversiones HB SpA), contratista del contrato EFE
+        const NOMINA_IHB = [
+            { rut: '15.075.993-5', nombres: 'CRISTIAN EDUARDO', apellidos: 'NÚÑEZ LEÓN', cargo: 'MAESTRO PRIMERA' },
+            { rut: '9.385.410-1', nombres: 'YOHNNY CRISTIAN', apellidos: 'ESPINOZA TAPIA', cargo: 'SUPERVISOR' },
+            { rut: '9.603.062-2', nombres: 'JORGE ENRIQUE', apellidos: 'BASCUR CHAMORRO', cargo: 'MAESTRO PRIMERA' },
+            { rut: '17.001.875-3', nombres: 'MARCELO ESTEBAN', apellidos: 'CHAMORRO CONTRERAS', cargo: 'MAESTRO SEGUNDA' },
+            { rut: '9.353.901-K', nombres: 'HUGO ANTONIO', apellidos: 'CHAMORRO MARDONES', cargo: 'MAESTRO PRIMERA' },
+            { rut: '18.834.820-3', nombres: 'FRANCISCO JAVIER', apellidos: 'FUENTES VELÁSQUEZ', cargo: 'EXPERTO EN PREVENCIÓN DE RIESGOS' },
+        ];
+
+        const CONTRATISTA_IHB = {
+            id: 'ihb',
+            nombre: 'IHB',
+            razonSocial: 'INVERSIONES HB SPA',
+            abrev: 'IHB',
+            logo: 'ihb',                // apaisado como el de SICE: usa la caja por defecto
+            nomina: NOMINA_IHB
         };
 
         const LUGARES_EFE = [
@@ -473,7 +497,10 @@
         // Clave del contrato → configuración. Un contrato sin "lugares" usa el
         // campo de lugar en texto libre; uno sin "nomina" usa cantidad/desglose.
         const CONTRATOS = {};
-        CONTRATOS[CONTRATO_EFE] = { lugares: LUGARES_EFE, nomina: NOMINA_EFE, contratista: CONTRATISTA_AB };
+        CONTRATOS[CONTRATO_EFE] = {
+            lugares: LUGARES_EFE, nomina: NOMINA_EFE,
+            contratistas: [CONTRATISTA_AB, CONTRATISTA_IHB]
+        };
         CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7 };
         CONTRATOS[CONTRATO_L63] = { nomina: NOMINA_L63 };
 
@@ -495,8 +522,9 @@
         function esSupervisor(cargo) {
             return CARGOS_SUPERVISION.some(c => cargo.indexOf(c) === 0);
         }
+        const CARGOS_PREVENCION = ['PREVENCIONISTA', 'EXPERTO EN PREVENCIÓN'];
         function esPrevencionista(cargo) {
-            return cargo.indexOf('PREVENCIONISTA') === 0;
+            return CARGOS_PREVENCION.some(c => cargo.indexOf(c) === 0);
         }
 
         // "GONZÁLEZ SEPÚLVEDA" → "González Sepúlveda"
@@ -572,12 +600,13 @@
         }
 
         /* ── Pre-carga de logos (una sola vez al abrir la página) ── */
-        const logos = { sice: null, efe: null, metro: null, ab: null };
+        const logos = { sice: null, efe: null, metro: null, ab: null, ihb: null };
         const logosReady = Promise.all([
             loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
             loadImageObj('logo-efe.png', { png: true, maxSide: 600 }).then(o => logos.efe = o),
             loadImageObj('logo-metro.png', { png: true, maxSide: 600 }).then(o => logos.metro = o),
             loadImageObj('logo-ab.png', { png: true, maxSide: 600 }).then(o => logos.ab = o),
+            loadImageObj('logo-ihb.png', { png: true, maxSide: 600 }).then(o => logos.ihb = o),
         ]);
 
         /* ════════════════════════════════════════════════════════════════
@@ -674,7 +703,9 @@
         function getContratista() {
             const cfg = getConfigContrato();
             const chk = document.getElementById('es_contratista');
-            return (cfg && cfg.contratista && chk && chk.checked) ? cfg.contratista : null;
+            if (!cfg || !cfg.contratistas || !chk || !chk.checked) return null;
+            const id = document.getElementById('sel_contratista').value;
+            return cfg.contratistas.find(c => c.id === id) || cfg.contratistas[0];
         }
 
         /* Nómina en uso: la de la contratista si está activa, si no la del contrato. */
@@ -688,7 +719,9 @@
         /* Empresa a la que pertenece el personal informado (para rotular). */
         function getEmpresaPersonal() {
             const c = getContratista();
-            return c ? { nombre: c.nombre, abrev: c.abrev } : { nombre: 'SICE', abrev: 'SICE' };
+            return c
+                ? { nombre: c.nombre, abrev: c.abrev, razonSocial: c.razonSocial || c.nombre }
+                : { nombre: 'SICE', abrev: 'SICE', razonSocial: 'SICE AGENCIA CHILE S.A.' };
         }
 
         function onContratoChange() {
@@ -698,11 +731,26 @@
             // ── Empresa contratista (solo contratos que la tengan definida) ──
             const boxContratista = document.getElementById('bloque-contratista');
             const chkContratista = document.getElementById('es_contratista');
-            const ofreceContratista = !!(cfg && cfg.contratista);
-            boxContratista.classList.toggle('hidden', !ofreceContratista);
-            if (!ofreceContratista) chkContratista.checked = false;
-            else document.getElementById('txt_contratista').textContent =
-                'Marque si los trabajos los ejecuta ' + cfg.contratista.nombre;
+            const selContratista = document.getElementById('sel_contratista');
+            const contratistas = (cfg && cfg.contratistas) || null;
+            boxContratista.classList.toggle('hidden', !contratistas);
+            if (!contratistas) {
+                chkContratista.checked = false;
+                selContratista.innerHTML = '';
+            } else {
+                document.getElementById('txt_contratista').textContent =
+                    'Marque si los trabajos los ejecuta una empresa contratista';
+                const prevSel = selContratista.value;
+                selContratista.innerHTML = '';
+                contratistas.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c.id;
+                    o.textContent = c.razonSocial || c.nombre;
+                    selContratista.appendChild(o);
+                });
+                if (prevSel && contratistas.some(c => c.id === prevSel)) selContratista.value = prevSel;
+            }
+            selContratista.classList.toggle('hidden', !(contratistas && chkContratista.checked));
 
             // ── Lugar específico ──
             const selLugar = document.getElementById('lugar_efe');
@@ -1143,7 +1191,7 @@
                 const infoRows = [
                     ['Empresa', 'SICE AGENCIA CHILE S.A.'],
                 ];
-                if (contratista) infoRows.push(['Empresa Contratista', contratista.nombre]);
+                if (contratista) infoRows.push(['Empresa Contratista', emp.razonSocial]);
                 infoRows.push(
                     ['Empresa Mandante', getMandanteLabel()],
                     ['Fecha de actividades', formatearFecha(fechaB)],
