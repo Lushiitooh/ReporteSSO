@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de EPP - SICE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <!-- Motor de PDF vectorial (determinista en todo dispositivo) -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .signature-pad {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            width: 100%;
+            height: 200px;
+            background-color: #ffffff;
+            touch-action: none;
+        }
+
+        #loader {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 antialiased pb-20">
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p class="font-bold text-xl">Generando PDF...</p>
+        <p class="text-sm mt-2 text-gray-300">Ajustando el documento, por favor espera.</p>
+    </div>
+
+    <header class="bg-blue-800 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold">Solicitud de EPP</h1>
+            <p class="text-xs text-blue-200">SICE Agencia Chile S.A. v1</p>
+        </div>
+        <div class="flex flex-col items-end gap-1">
+            <a href="index.html" class="text-xs text-blue-100 underline hover:text-white whitespace-nowrap">Reporte SSO
+                &rarr;</a>
+            <a href="declaracion.html"
+                class="text-xs text-blue-100 underline hover:text-white whitespace-nowrap">Declaración &rarr;</a>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+        <form id="epp-form" class="space-y-6">
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">1. Datos de la Solicitud</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha de solicitud</label>
+                        <input type="date" id="fecha" required
+                            class="w-full border border-gray-300 p-2 rounded text-center focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre completo de quien retira</label>
+                        <select id="prevencionista" required onchange="onPrevencionistaChange()"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                            <option value="">Seleccione prevencionista...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">RUT de quien retira</label>
+                        <input type="text" id="rut_prevencionista" readonly placeholder="Se completa automáticamente"
+                            class="w-full border border-gray-300 p-2 rounded bg-gray-100 text-gray-600">
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">2. Entrega de EPP</h2>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Agregar trabajador</label>
+                    <input type="text" id="buscar_trab" autocomplete="off" oninput="filtrarTrabajadores()"
+                        onfocus="filtrarTrabajadores()" placeholder="Escriba nombre, apellido o RUT..."
+                        class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <div id="resultados_trab"
+                        class="hidden mt-1 border border-gray-300 rounded bg-white max-h-56 overflow-y-auto divide-y divide-gray-200">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">
+                        <span id="total_personal">0</span> trabajadores en el listado maestro.
+                    </p>
+                </div>
+
+                <div id="lista_solicitudes" class="space-y-4"></div>
+
+                <p id="sin_trabajadores"
+                    class="text-sm text-gray-400 p-3 border border-dashed border-gray-300 rounded text-center">
+                    Aún no ha agregado trabajadores.
+                </p>
+            </section>
+
+            <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
+                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Firma del Prevencionista</h2>
+                <canvas id="signature-pad" class="signature-pad"></canvas>
+                <div class="flex justify-between items-center mt-3">
+                    <span class="text-xs text-gray-500">Firma dentro del recuadro</span>
+                    <button type="button" onclick="signaturePad.clear()"
+                        class="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 font-semibold">
+                        Limpiar Firma
+                    </button>
+                </div>
+            </section>
+
+            <button type="button" onclick="generarPDF()"
+                class="w-full bg-blue-700 text-white font-bold text-lg py-4 rounded-lg shadow-lg hover:bg-blue-800 active:bg-blue-900 transition mt-4 mb-8 flex justify-center items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Generar y Descargar PDF
+            </button>
+        </form>
+    </main>
+
+    <script>
+        /* ════════════════════════════════════════════════════════════════
+           DATOS (extraídos del MAESTRO SICE)
+           PERSONAL: [rut, nombres, apellido paterno, apellido materno]
+           EPP:      [código, descripción]
+        ════════════════════════════════════════════════════════════════ */
+        const PERSONAL = [
+            ["13007195-3","Patricio Antonio","Cubillos","Armijo"],["11385774-9","Lilian Viviana","Garcia","Ramos"],["11843767-5","Marco Antonio","Gutierrez","Gajardo"],
+            ["29267072-9","Juan Jose","Rosa","Mendez"],["11228431-1","Maria Virginia","Vasquez","Figueroa"],["27071300-9","Victor Eduardo","Acosta","Davalillo"],
+            ["26214354-6","Pablo Jose","Alvarez","Marin"],["23702238-6","Sol Del Valle","Diaz","Gimenez"],["10846962-5","Rodrigo Leonardo","Espinoza","Fredes"],
+            ["26417754-5","Dayanna Virginia","Gil","Motta"],["16375919-5","Tamara Angelica","Gonzalez","Contreras"],["9989427-K","Pedro Alberto","Lucabeche","Medina"],
+            ["12297688-2","Sonia Claudia","Miranda","Castillo"],["8139925-5","Jaime Orlando","Muñoz","Burgos"],["22001742-7","Mikel","Narvarte","Ijurco"],
+            ["29267076-1","Sofia","Olcina","Aracil"],["20425697-7","Camila Isidora","Orellana","Nuñez"],["16339884-2","Erika Zulema","Pavez","Valderrama"],
+            ["15473178-4","Denisse Andrea","Pino","Diaz"],["25647297-K","Luis Daniel","Rosal","Villamizar"],["27240575-1","Maria Andreina","Soto","Rangel"],
+            ["18668220-3","Loreto Del Carmen","Suarez","Huaico"],["10956261-0","Crihstian Luis","Trigo","Tapia"],["12736110-K","Luis Esteban","Valenzuela","Avello"],
+            ["20604489-6","Cristian Ignacio","Adasme","Gonzalez"],["17875299-5","Ignacio Patricio","Alvarez","Nieto"],["20888377-1","Cristobal Joaquin","Balcazar","Acevedo"],
+            ["17879874-K","Javier Antonio","Barrueto","Contreras"],["15437428-0","Carlos Marcelo Jose","Cabezas","Menares"],["20054374-2","Diego Alonzo","Correa","Zenteno"],
+            ["18354645-7","Javier Ignacio Enrique","Erazo","Godoy"],["20424875-3","Felipe Ignacio","Galvez","Diaz"],["18540384-K","Alvaro Sebastian","Gonzalez","Arriagada"],
+            ["17751191-9","Fernando Daniel","Leiva","Menares"],["22098481-8","Francisco Daniel","Leiva","Parada"],["15706829-6","Aldo Jose","Loyola","Loyola"],
+            ["25450545-5","Michelzon Josue","Montañez","Chavez"],["17053411-5","Antonio Isaac","Narvaez","Soto"],["17150345-0","Felipe Antonio","Nevens","Moya"],
+            ["12897879-8","Pablo Alberto","Nuñez","Cofre"],["14372861-7","Jacqueline Grace","Parra","Diaz"],["15451270-5","Daniel Alejandro","Pranao","Antifilo"],
+            ["12558504-3","Oscar Hugo","Rodriguez","Cabello"],["21237901-8","Cristobal Jesus","Salazar","Fica"],["19803565-3","Francisco Javier","Salazar","Luna"],
+            ["19244455-1","Felipe Andres","San Juan","Troncoso"],["22703842-K","Miguel Angel","Santillan","Olguin"],["13975846-3","Jorge Antonio","Sarmiento","Segura"],
+            ["21959579-4","Alexis Alejandro","Tapia","Catalan"],["19275154-3","Felipe Ignacio","Toledo","Mella"],["20311950-K","Jorge Andres","Valdes","Soto"],
+            ["21820617-4","Johans Javier","Vallejos","Pizarro"],["19315383-6","Jeremy Daniel","Vega","Guajardo"],["26720944-8","Jose Francisco","Villanueva","Chavez"],
+            ["21388487-5","Matias Francisco","Villarroel","Palma"],["22419213-4","Felipe Ignacio","Ahumada","Guzman"],["26819239-5","Yhaxhuhary Lorena","Angulo","Baldallo"],
+            ["25863993-6","Roneheli Benito","Arenas","Cedeño"],["26054421-7","Otto Guillermo","Chavez","Gonzalez"],["17782416-K","Angelo Alejandro","Donoso","Pozo"],
+            ["19528649-3","Yazmin Alejandra","Epulef","Palma"],["19566254-1","Enzon Edinzon Leandro","Escanilla","Riffo"],["20417312-5","Ruben Fernando","Filosa","Carcamo"],
+            ["20054334-3","Felipe Eduardo","Fuentes","Mendez"],["16796686-1","Camila Belen","Gomez","Barrera"],["20388513-K","Gianfranco","Hernandez","Salazar"],
+            ["16901765-4","Daniel Alejandro","Ibaceta","Vergara"],["20556733-K","Felipe Ignacio","Leon","Arriagada"],["27113393-6","Edgar Alexander","Mendoza","Mendoza"],
+            ["20751593-0","Nicolas Andres","Mieres","Chacaltana"],["21156816-K","Michael Amador","Norambuena","Geraldo"],["26392658-7","Benjamin Enrique","Nucette","Uzcategui"],
+            ["18440032-4","Marco Andree","Orellana","Pizarro"],["26474202-1","Tayron Enrique","Palma","Galue"],["14903296-7","Gabriel Eliseo","Pinto","Alvarez"],
+            ["12983323-8","Gerardo Del Carmen","Reyes","Calabrano"],["19385938-0","Jose Alfredo","Reyes","Yañez"],["19319030-8","Danilo Enrique","Rivera","Galaz"],
+            ["21230890-0","Cristian Alexander","Rojas","Torres"],["19482033-K","Clara Victoria","Rosado","Coliqueo"],["26535504-8","Juan Leonardo","Sanchez","Rodriguez"],
+            ["20882792-8","David Alonso","Sepulveda","Cortes"],["20391189-0","Felipe Ismael Iandi","Silva","Araneda"],["20614329-0","Jostin Ignacio De Jesus","Soto","Rios"],
+            ["21051003-6","Benjamin Armando","Tedeschi","Gonzalez"],["27142464-7","Jesus Amado Jose","Theis","Franco"],["20041945-6","Ignacio Andres","Valdevenito","Castillo"],
+            ["26112519-6","Franyel Aquiles","Velasquez","Nuñez"],["22668796-3","Alvaro Alexander","Villagra","Pinto"],["19039064-0","Cristopher Alejandro","Villalobos","Guerrero"],
+            ["9034348-3","Sergio Miguel","Herrera","Sepulveda"],["18046031-4","Carlos Matias","Gonzalez","Parra"],["26269986-2","Eduardo Cesar","Minaya","Reyes"],
+            ["17021486-2","Francisco Alejandro","Muñoz","Bustos"],["16114410-K","Roberto Exequiel","Orellana","Beauvais"],["14311505-4","Marta Cecilia","Roca","Chico"],
+            ["19528128-9","Daniel Francisco","Alarcon","Parra"],["14378813-K","Sergio Alejandro","Cofre","Cofre"],["16520025-K","Francisco Daniel","Garate","Perez"],
+            ["15901067-8","Christopher Sebastian","Hidalgo","Pizarro"],["15606803-9","Alex Rodrigo","Lorca","Valenzuela"],["18925717-1","Gonzalo Antonio","Nuñez","Sanhueza"],
+            ["25981340-9","Percy Roberto","Robles","Sanchez"],["25457528-3","Juan Carlos","Rojas","Salazar"],["17909971-3","Antonio Andres","Aballay","Medina"],
+            ["19848759-7","Allan Luis","Acevedo","Miranda"],["19333659-0","Eric Eduardo","Ahumada","Lagos"],["13369755-1","Raul Patricio","Alarcon","Castillo"],
+            ["20843597-3","Bastian Ignacio","Alarcon","Rebolledo"],["16719877-5","Lissette Stephania","Alarcon","Venegas"],["11185160-3","Christian Alberto","Albie","Shimono"],
+            ["15095612-9","Rodrigo Antonio","Albucco","Ariztia"],["19431439-6","Marcelo Pablo","Alcaino","Castillo"],["16553431-K","Jonathan Ismael","Alegria","Coronado"],
+            ["21073626-3","Alvaro Vicente","Andrades","Arenas"],["16247960-1","Luis Andres","Aracena","Castillo"],["8414980-2","Jimmy Rodrigo","Aranda","Mora"],
+            ["12223953-5","Arturo Alberto","Aravena","Delgado"],["15095715-K","Richard Daniel","Araya","Navarro"],["18698301-7","Diego Alfonso","Arias","Aburto"],
+            ["15662877-8","Erick Alexis","Arias","Guerra"],["20613616-2","Jorge Issac","Ascencio","San Martin"],["12300067-6","Hector Francisco","Astudillo","Valenzuela"],
+            ["13012920-K","Juan Sergio Alejandro","Bahamondes","Flores"],["12757524-K","Nelson Rodrigo","Baldevenito","Poblete"],["14167795-0","Flavio Alberto","Barahona","Gallardo"],
+            ["13483886-8","Cristobal Paul","Barra","Espinoza"],["12192525-7","Marcelo Andres","Barra","Gonzalez"],["15627443-7","Michael Andres","Barrientos","Valenzuela"],
+            ["18224830-4","Sebastian Alejandro","Basaes","Godoy"],["17140789-3","Flavio Guisseppe","Bavestrello","Aranda"],["10218226-K","Alfredo Alejandro","Beardesley","Romero"],
+            ["10004805-1","Pablo Antonio","Beltran","Fuentes"],["19440253-8","Harols Dixon","Benavides","Troncoso"],["21705246-7","Jorge Fernando","Borquez","Riquelme"],
+            ["13789305-3","Daniz Alonso","Bravo","Hernandez"],["26233481-3","Adrian Jose","Briceño","Arcila"],["15094813-4","Juan Carlos","Brito","Martinez"],
+            ["16695585-8","Gustavo Alejandro","Bustamante","Lara"],["17158902-9","Juan Hector","Bustamante","Navarrete"],["17943736-8","Francisco Alejandro","Bustos","Leon"],
+            ["19811686-6","Marcelo Antonio","Caamaño","Rivera"],["16182915-3","Israel Patricio","Cabrera","Silva"],["12022360-7","Rafael Eduardo","Cabrera","Turra"],
+            ["13752577-1","Cristian Alejandro","Caceres","Muñoz"],["21053783-K","Erik Gonzalo","Caceres","Perez"],["26510616-1","Tito Antonio","Cadena","Aguilar"],
+            ["25939701-4","Daniel Enrique","Calzadilla","Galindo"],["17162581-5","Juan Guillermo","Campos","Becerra"],["11401978-K","Rodrigo Eduardo","Campos","Leiva"],
+            ["19503833-3","Daniel Jesus","Candia","Garrido"],["18220649-0","Berly Antonieta","Caniguan","Trujillo"],["13226572-0","Marco Antonio","Cardenas","Recabarren"],
+            ["17896610-3","Jose Alfredo","Caro","Caro"],["18188667-6","Juan Ignacio","Carrasco","Ferreira"],["12447785-9","Jose Antonio","Castillo","Calderon"],
+            ["17983293-3","Pablo Andres","Castillo","Reyes"],["16692978-4","Cesar Antonio","Castillo","Viscarra"],["21626063-5","Kevin Matias","Castro","Silva"],
+            ["18068981-8","Fabian Luis Alejandro","Castro","Torres"],["18722706-2","Jocelyn Fernanda","Catalan","Diaz"],["18762868-7","Fabian Alexis","Cayupi","Umanzor"],
+            ["10296775-5","Esteban Mauricio","Cebrero","Gomez"],["21564717-K","Maximiliano Andres","Cepeda","Olmedo"],["25956324-0","Yilber Josue","Chona","Velazco"],
+            ["16967692-5","Braulio Rene","Cisternas","Oyanedel"],["19836183-6","Luis Alfredo","Cisternas","Saavedra"],["25587833-6","Yilber Jose","Contreras","Albarran"],
+            ["26814923-6","Carlos Yhonaiker","Contreras","Mantilla"],["19564134-K","Tomas Hans","Contreras","Neira"],["18381447-8","Jeanpiere Juvenal","Cordero","Cordero"],
+            ["20019076-9","Manuel Alejandro","Cornejo","Pereira"],["18012831-K","Carla Sailim","Cortes","Poblete"],["11255640-0","Rigoberto Alfonso","Corvalan","Gonzalez"],
+            ["13295633-2","Oscar Patricio","Costa","Gonzalez"],["26985269-0","Yohandry Manuel","Coy","Hurtado"],["18163411-1","Fabian Ernesto","Cuadra","Arevalo"],
+            ["19192194-1","Alberto Alejandro","Delgado","Fuentes"],["13432667-0","Miguel Angel","Diaz","Alegria"],["16664769-K","Rodrigo Andres","Diaz","Domaccin"],
+            ["17282975-9","Daisy Juri","Diaz","Martini"],["17009584-7","Alvaro Andres","Diaz","Sanchez"],["16277914-1","Saul Rodolfo","Diaz","Villagra"],
+            ["19570060-5","Sergio Enrique","Dinamarca","Briones"],["10455036-3","Claudio Alejandro","Donoso","Aravena"],["18529963-5","Carlos Alvaro","Donoso","Echeverria"],
+            ["12499511-6","Miguel Angel","Duarte","Tapia"],["16635548-6","Basilio Andres","Echeverria","Cisternas"],["13690087-0","Paola Karina","Encina","Cid"],
+            ["16771682-2","Cristobal Andres","Escarate","Benavides"],["17555155-7","Sergio Esteban","Escarate","Benavides"],["20938597-K","Alejandro Jorge Ignacio","Escobar","Mujica"],
+            ["19063685-2","Javier Ignacio","Escobar","Pinilla"],["16726127-2","Mariela Natalia","Escobar","Vasquez"],["15740755-4","Francisco Javier","Farias","Molina"],
+            ["27936052-4","Gustavo Adolfo","Fernandez","Lopez"],["18385316-3","Diego Patricio","Fernandez","Porzio"],["17508568-8","Jose Alfredo","Ferreira","Calvio"],
+            ["17926805-1","Fabian Alejandro","Figueroa","Bahamondes"],["10498590-4","Mario Francisco","Figueroa","Espinosa"],["19728642-3","Rodolfo Andres","Figueroa","Jaña"],
+            ["16500633-K","Daniel Orlando","Figueroa","Miranda"],["16768080-1","Luciano Guillermo Esteban","Figueroa","San Martin"],["26716427-4","Roinel Antonio","Flores","Marsiglia"],
+            ["16395881-3","Roberto Andres","Fuentes","Lavin"],["19331894-0","Marco Ignacio","Fuentes","Saez"],["16280906-7","Jose Alfredo","Fuentes","Torres"],
+            ["16277348-8","Alejandro Esteban","Gajardo","Olave"],["14568839-6","Christian Rene","Gallardo","Carvajal"],["18383274-3","Juan Jose Eduardo","Garcia","Guzman"],
+            ["19096395-0","Felipe Esteban","Gomez","Caniuqueo"],["21003862-0","Fabian Martin Alexis","Gonzalez","Alvarez"],["17545466-7","Victor Manuel","Gonzalez","Amaya"],
+            ["18786794-0","Gustavo Alejandro","Gonzalez","Cornejo"],["19563805-5","Gonzalo Ignacio","Gonzalez","Garrido"],["17162951-9","Anibal Jesus","Gonzalez","Gonzalez"],
+            ["17790168-7","Esteban Andres","Gonzalez","Lagos"],["20922517-4","Sebastian Andres","Gonzalez","Mercado"],["19144599-6","Matias Ignacio","Gonzalez","Toro"],
+            ["19787030-3","Juan Benjamin","Guardia","Ramos"],["12448060-4","Guillermo Heriberto","Guerra","Figueroa"],["21265103-6","Guillermo Ignacio","Guerra","Roman"],
+            ["17569061-1","Michael Marco","Guerrero","Dorat"],["15329713-4","Natalia Andrea","Hermosilla","Fuentes"],["19121257-6","Sebastian Matias","Hernandez","Cuevas"],
+            ["16407922-8","Miguel Alejandro","Hormazabal","Garrido"],["13517631-1","Carlos Enrique","Hueche","Queupumil"],["14550252-7","Jorge Antonio","Ibacache","Arancibia"],
+            ["18390113-3","Francisco Alejandro","Ibañez","Correa"],["21094017-0","Ignacio Eduardo","Irribarra","Carrasco"],["18706101-6","Marco Patricio","Jalil","Amestica"],
+            ["21295418-7","Ignacio Francisco","Jara","Lara"],["18108268-2","Pablo Luciano","Jara","Molina"],["12956043-6","Jorge Segundo","Jimenez","Ordenes"],
+            ["20012293-3","Diego Andres","Jimenez","Ordenes"],["18729677-3","Jose Andres","Jineo","Huaiquiñir"],["21938169-7","Lukas Fabian Antonio","Jofre","Venegas"],
+            ["19055430-9","Sebastian Ignacio","Labarra","Barrientos"],["16027987-7","Ruben Francisco","Lagos","Lagos"],["14910287-6","Mauricio Andres","Lara","Arias"],
+            ["11677850-5","Jorge Patricio","Larenas","Cisterna"],["19706105-7","Byron Enrique","Leiton","Pardo"],["13992852-0","Edwin Andres","Leon","Bravo"],
+            ["15061701-4","Jorge Orlando","Leon","Espindola"],["19878243-2","Nicolas Andres","Lopez","Caro"],["20575397-4","Jordan Ariel","Lopez","Levancini"],
+            ["10850926-0","Christian Marcelo","Lopez","Riva"],["17647189-1","Luis Elias","Loyola","Reyes"],["16952771-7","Miguel Esteban","Luengo","Raillan"],
+            ["17304247-7","Jonathan Alejandro","Luengo","Raillan"],["16486018-3","Felipe Andro","Magno","Muñoz"],["20424601-7","Jeffry Elias","Maldonado","Aguilera"],
+            ["15890269-9","Victor Hugo","Maldonado","Lara"],["16487111-8","Reynaldo Andres Pascual","Mancilla","Piñones"],["15258206-4","Ariel Ramiro","Manquilef","Zambrano"],
+            ["18564641-6","Harold Marcos","Marchant","Huerta"],["17584261-6","Guillermo Andres","Marin","Bravo"],["18269540-8","Jose Eduardo","Marin","Rojas"],
+            ["20396728-4","Rafael Jaime","Martinez","Arellano"],["25809939-7","Javier Coromoto","Martinez","Escobar"],["19055180-6","Felipe Andres","Mejias","Moya"],
+            ["10611933-3","Hernan Daller","Melo","Hernandez"],["25703929-3","Fabinson","Mendez","Leonel"],["21309401-7","Ignacio Andres","Mendoza","Aburto"],
+            ["21721002-K","Jose Antonio","Merino","Garate"],["16545250-K","Daniel Eduardo","Milla","Castillo"],["19481655-3","Julio Manuel","Millao","Jimenez"],
+            ["14195195-5","Luis Patricio","Miranda","Mansilla"],["18235986-6","Nicolas Antonio","Molina","Aravena"],["18027704-8","Bryan Alexis","Montecinos","Chavez"],
+            ["15800470-4","Priscilla Elizabeth","Montecinos","Pinto"],["12671126-3","Marcelo Ricardo","Moraga","Canales"],["20638108-6","Ignacio Andres","Morales","Caceres"],
+            ["15852587-9","Jose Manuel","Morales","Ramos"],["22839257-K","Xavier Leonardo","Moreira","Tigua"],["9518618-1","Roberto Enrique","Muñoz","Torrejon"],
+            ["19192847-4","Joaquin Michael","Mura","Calderon"],["14411511-2","Roxana","Neira","Burgos"],["8750889-7","Israel Enrique","Nova","Avello"],
+            ["17887505-1","Victor Alejandro","Novoa","Hormazabal"],["13875685-8","Patricia Lorena","Olguin","Bravo"],["11778511-4","Nelson Eduardo","Oliva","Mella"],
+            ["17118485-1","Macarena Valentina","Ordenes","Ugarte"],["16698954-K","Jose Abraham","Orellana","Leon"],["16250709-5","Daniela Ninniverg","Orellana","Pinto"],
+            ["17036490-2","Jose Manuel","Ormeño","Diaz"],["10365750-4","Carlos Alejandro J.","Ortega","Arrue"],["27143725-0","Orlando Enrique","Ortega","Perez"],
+            ["14742533-3","Jose Luis","Ortiz","Flores"],["12400262-1","Ariel Del Transito","Osorio","Ojeda"],["25664372-3","Jimmy De Jesus","Pacheco","Lozano"],
+            ["10477763-5","Carolyn Marcela","Paillavil","Vasquez"],["16136921-7","Violeta Del Carmen","Parra","Quevedo"],["19013127-0","Felipe Andres","Perez","Escobar"],
+            ["18189461-K","Daniela Alejandra","Perez","Ramirez"],["18766718-6","Claudio Alexis","Pilquiman","Cordova"],["18670065-1","Ricardo Andres","Pino","Morales"],
+            ["18150749-7","Andres Ignacio","Pinto","Jerez"],["19336744-5","Ives Ignacio","Poblete","Poblete"],["16813228-K","Alejandro Fabian","Quezada","Maldonado"],
+            ["17353554-6","Francisco Eduardo","Quezada","Sepulveda"],["13156356-6","Nicolas Marcelo","Quintana","Guentian"],["16500100-1","Alexis Israel","Ramirez","Maturana"],
+            ["12851257-8","Carlos Patricio","Ramirez","Saez"],["19227841-4","Matias Nicolas","Ramos","Cheuquepan"],["16761852-9","Rodrigo Omar","Ramos","Molina"],
+            ["18269233-6","Jonathan Felipe","Ramos","Ponce"],["18997660-7","Christopher Giovanni","Raunigg","Nuñez"],["19470214-0","Christian Eduardo","Rebolledo","Rojas"],
+            ["17577806-3","Darwin Emilio","Recabarren","Carrasco"],["16623966-4","Roberto Antonio","Rencoret","Herrera"],["13991351-5","Carlos Bernardo","Reyes","Ahumada"],
+            ["17203834-4","Rodrigo Alonso","Riquelme","Aninao"],["15973876-0","Alejandro Francisco","Riquelme","Rodenas"],["16561797-5","Jonathan Alejandro","Rocco","Lloyd"],
+            ["20204625-8","Leandro Alexander","Rocha","Jimenez"],["17514361-0","Danilo Alejandro","Rojas","Garcia"],["19338872-8","Gonzalo Ignacio","Rojas","Infante"],
+            ["18468717-8","Mario Andres","Rojas","Poblete"],["26009461-0","Jonathan Jose","Romero","Piña"],["16079087-3","Ricardo Antonio","Romo","Barra"],
+            ["18686695-9","Jose Domingo","Rozas","Luna"],["17477879-5","Dhiego Ariel","Ruiz","Toro"],["18298596-1","Erick Sebastian","Saavedra","Saavedra"],
+            ["13289899-5","Luis Ambrosio","Saez","Castro"],["18196408-1","Braulio Esteban","Saez","Noches"],["17905711-5","Joshua Sebastian","Saez","Pacheco"],
+            ["26344874-K","Gustavo Jose","Salazar","."],["17848789-2","Maximiliano Andres","Sanchez","Arias"],["20281558-8","Benjamin Fernando","Sanchez","Castillo"],
+            ["26899599-4","Victor Manuel","Sanchez","Materan"],["17728902-7","Eduardo Hernan","Sanchez","Sanchez"],["18138064-0","Luis Alejandro","Sanchez","Troncoso"],
+            ["20361710-0","Bayron Nicolas","Sanchez","Troncoso"],["20244456-3","Camilo Andres","Sanhueza","Berrios"],["19443628-9","Nicolas Wladimir","Santana","Pantoja"],
+            ["16385595-K","Axel Ieve","Schuffenegger","Bravo"],["12579181-6","Erik Andres","Segura","Vergara"],["14593910-0","Robert Angelo","Sepulveda","Benedetti"],
+            ["17951504-0","Daniel Alejandro","Sepulveda","Penrroz"],["15511690-0","Francisca Evelyn","Sepulveda","Sagredo"],["16546100-2","Josue Fernando","Sepulveda","Tapia"],
+            ["15955051-6","Cristian Javier","Serrano","Peña"],["12305320-6","Alejandro Malaquias","Sierra","Orellana"],["16972155-6","Jaime Andres","Silva","Henriquez"],
+            ["19235566-4","Victor Jesus","Soto","Aguirre"],["19259157-0","Boris Ignacio","Soto","Parra"],["15075415-1","John Emilio","Tapia","Vera"],
+            ["18996395-5","Guillermo Alejandro","Tene","Alvarez"],["16103246-8","Diego Esteban","Toledo","Cataldo"],["17300618-7","Javier Ulises","Toro","Cancino"],
+            ["17245228-0","Victor Antonio","Torres","Jimenez"],["19508473-4","Manuel Ignacio","Torres","Reyes"],["19879707-3","Claudio Ignacio","Ulloa","Inostroza"],
+            ["16444472-4","Jose Alberto","Ulloa","Soto"],["25226248-2","Jendri Jose","Urbina","Ortega"],["20789186-K","Katerin Alejandra","Uribe","Opazo"],
+            ["18800102-5","Andres Eduardo","Urrutia","Urrutia"],["18730966-2","Alan Felipe","Valenzuela","Burgos"],["16947872-4","Erik Elier","Varela","Poblete"],
+            ["17675833-3","Sebastian Eduardo","Vargas","Castro"],["16332289-7","Esteban Ignacio","Vargas","Irribarra"],["17279708-3","Jorge Andres","Vargas","Rivas"],
+            ["16632389-4","Luis Cesar","Vega","Antimil"],["20557986-9","Jordan Alexis","Venegas","Acuña"],["9364486-7","Hector Enrique","Vergara","Perez"],
+            ["19781981-2","Juan Manuel","Vicencio","Azocar"],["21023161-7","Michael Andres","Vidal","Jorquera"],["16761153-2","Diego Hernando","Villagran","Vera"],
+            ["18510959-3","Jorge Andres","Villanueva","Bernal"],["7413167-0","Ricardo Antonio","Villanueva","Gonzalez"],["10755532-3","Fabian Patricio","Villarroel","Uribe"],
+            ["20390184-4","Guillermo Fernando","Viveros","Perez"],["20101168-K","Christian Esteban","Werlinger","Romero"],["12494317-5","Juan Carlos","Zamorano","Valdivia"],
+            ["18871185-5","Nelson Andree","Hernandez","Feest"],["17632488-0","Rodrigo Andres","Molina","Nahuelquin"],["18306021-K","Juan Pablo","Valenzuela","Ilich"],
+            ["12673093-4","Alfonso Gustavo","Acevedo","Muñoz"],["16407860-4","David Esteban","Aedo","Huenulao"],["26098098-K","Christopher Simpson","Alvarado","Nieto"],
+            ["12850708-6","Ricardo Andres","Arellano","Zuñiga"],["19719052-3","Camilo Eduardo","Arevalo","Rios"],["20534970-7","Ignacio Cristhoper","Ayala","Saez"],
+            ["17327766-0","Daniel Orlando","Camilla","Ortiz"],["19752485-5","Jaime Alonso","Castillo","Perez"],["11327403-4","Fabian Alberto","Collao","Lafferte"],
+            ["13916042-8","Oscar Orlando","Correa","Rivera"],["15889655-9","Cristian Salvador","Cortes","Rojas"],["16689797-1","Carol Del Transito","Cruz","Torres"],
+            ["11876272-K","Cesar Eduardo","Gonzalez","Jerez"],["27218544-1","Juan Rodolfo","Guardado","Castillo"],["16174281-3","Ivania Valeria","Gutierrez","Astudillo"],
+            ["15667915-1","Francisco Javier","Jaramillo","Pino"],["13458659-1","Vanessa Olivia","Larenas","Salinas"],["26885600-5","Jose Enrique","Leal","Gonzalez"],
+            ["8699166-7","Pablo Andres","Montenegro","Zambrano"],["17577147-6","Guillermo Israel","Morales","Sanchez"],["15617775-K","Rodrigo Andres","Navarrete","Bustos"],
+            ["19151877-2","Cristobal Ricardo","Ramos","Correa"],["13538949-8","Alexis Samuel","Rodriguez","Rios"],["9267025-2","Censorino Pascual","Rojas","Gonzalez"],
+            ["19995930-1","Matias Sebastian Lucas","Sanchez","Cofre"],["20057455-9","Ismael David","Toro","Arenas"],["25476961-4","Richard Alexander","Villalobos","Sanchez"],
+            ["27197321-7","Angelo Andres","Yate","Rengifo"],["20052071-8","Jose Ignacio","Amestica","Valenzuela"],["27516097-0","David Agustin","Avila","Reyes"],
+            ["17027770-8","Diego Patricio","Barros","Contreras"],["19482890-K","Nicolas Alexis","Contreras","Robles"],["21467940-K","Benjamin Isaias","Curiche","Bellazzi"],
+            ["17879193-1","Nicolas Andres","Duran","Lastra"],["25356333-8","Anna Paula","Franco","Paz"],["17189206-6","Francisco Javier","Gallegos","Moya"],
+            ["19583770-8","Neftali Abraham","Garcia","Sepulveda"],["19233841-7","Bastian Alejandro","Garnica","Salinas"],["19821800-6","Alejandra Isabel","Henriquez","Peralta"],
+            ["21568641-8","Bastian David","Huichaqueo","Antilef"],["16296097-0","Francisco Javier","Ibaceta","Vergara"],["26981007-6","Marylu","Jimenez","Godoy"],
+            ["20449096-1","Kevin Patrick","Lopez","Carreño"],["27411691-9","Milagros Stefany","Martinez","Carriedo"],["26410076-3","John Fredy","Martinez","Morales"],
+            ["21390948-7","Kemish Alexis","Martinez","Sanchez"],["26501957-9","Ciro David","Matos","Ferrer"],["20060055-K","David Antonio","Mejia","Jara"],
+            ["18078545-0","Miguel Angel","Navarrete","Inostroza"],["20882521-6","Bairon Alejandro","Neira","Moya"],["20118258-1","Leonardo Andres","Palacios","Vera"],
+            ["18847153-6","Nicolas Daniel","Palma","Medina"],["21072527-K","Roberto Andres","Parra","Saez"],["22546607-6","Jostin Yadiel","Pizarro","Alvarez"],
+            ["26089675-K","Ronald Aly","Quiroz","Ovalles"],["18325330-1","David Benjamin","Reyes","Salinas"],["19958491-K","Benjamin Ignacio","Saez","Retamal"],
+            ["21262927-8","Bastian Rodrigo Jesus","Sandoval","Sandoval"],["21465055-K","Saray Antonia","Tapia","Jerez"],["19991850-8","Alonso Antonio","Ulloa","Casanova"],
+            ["20454714-9","Leonel Octavio","Vallejos","Nuñez"],["21119666-1","Sebastian Benjamin","Veas","Marileo"],["19918012-6","Nicolas Maximiliano","Venegas","Saavedra"],
+            ["26880970-8","Jose Francisco","Martinez","Bordones"],["19570560-7","Martin Andres","Cadiz","Cifuentes"],["12248512-9","Mauricio Alejandro","Cortes","Lopez"],
+            ["11210733-9","Nestor Manuel","Flores","Romero"],["20783213-8","Victor Andres","Galvez","Parraguez"],["15778064-6","Milton Antonio","Gonzalez","Sepulveda"],
+            ["17677536-K","Nicolas Esteban","Jara","Guzman"],["17783271-5","Emmanuel David","Jara","Mendez"],["18740067-8","Melany Francisca","Lazo","Astorga"],
+            ["21343926-K","Benjamin Andres","Maldonado","Moreno"],["17859132-0","Patricio Ignacio","Pau","Salinas"],["10088138-1","Jaime Eduardo","Rivera","Mancilla"],
+            ["17677114-3","Ronald Ignacio","Rodriguez","Wajner"],["21461221-6","Matias Ignacio","Rojos","Villalon"],["10668848-6","Juan Carlos","Valenzuela","Castro"],
+            ["15915287-1","Francisco Alejandro","Aguirre","Zapata"],["18692692-7","Ronald Henry","Cancino","Cancino"],["17419225-1","Valeria Alejandra","Huichipan","Padilla"],
+            ["16372234-8","Gustavo Adolfo","Ortubia","Astorga"],["7542821-9","Guillermo","Osorio","Pardo"],["7277448-5","Carlos Enrique","Osses","Pacheco"],
+            ["27961012-1","Diana Carolina","Robles","Henriquez"],["9728734-1","Eduardo Martín","Salinas","Correa"],["18242624-5","Luis Alberto","Sepulveda","Cortes"],
+            ["10318562-9","Avelino Antonio","Troncoso","Toro"],["19709670-5","Javier Ignacio","Carrasco","Quidel"],["20063682-1","Nicolas Andree","Martinez","Meza"],
+            ["16201263-0","Cristian Andres","Escobar","Muñoz"],["16858989-1","Carlos Ignacio","Robledo","Ledesma"],["17316971-K","Andres Esteban","Rojas","Hernandez"],
+            ["13778560-9","Luis Hernan","Sereño","Diaz"]
+        ];
+        const EPP = [
+            ["900109-001","PANTALON ACTIVEX SOLDADOR DESCARNE TR, TALLA L"],
+            ["900109-002","CHAQUETA ACTIVEX SOLDADOR DESCARNE TR, TALLA L"],
+            ["900109-003","PROTECTOR SOLAR FPS 50+ LEBLON (POMO 190GR)"],
+            ["900109-004","GUANTE CABRITILLA BLACK BULL BASIC IMP,9,BLANCO, BLACK BULL (PAR)"],
+            ["900109-005","BARBIQUEJO PLASTICO NACIONAL S/TALLA, S/COLOR (PAR)"],
+            ["900109-006","GUANTE MULTIPROTEC FLEX L-1000 ANTICORTE NACIONAL, TALLA N°8, GRIS FORCE (PAR)"],
+            ["900109-007","GUANTE MULTIPROTEC FLEX L-1000 ANTICORTE NACIONAL, TALLA N°9, GRIS FORCE (PAR)"],
+            ["900109-008","GUANTE MULTIPROTEC FLEX L-1000 ANTICORTE NACIONAL, TALLA N°10, GRIS FORCE (PAR)"],
+            ["900109-009","RESPIRADOR 3M 6300 NACIONAL, L, S/COLOR, 3M (PAR)"],
+            ["900109-010","BOTIN PROFLEX 108 NACIONAL, 40, CAFÉ, PROFLEX (PAR)"],
+            ["900109-011","BOTIN PROFLEX 108 NACIONAL, 41, CAFÉ, PROFLEX (PAR)"],
+            ["900109-012","BOTIN PROFLEX 108 NACIONAL, 42, CAFÉ, PROFLEX (PAR)"],
+            ["900109-013","BOTIN PROFLEX 108 NACIONAL, 38, CAFÉ, PROFLEX (PAR)"],
+            ["900109-014","BOTIN PROFLEX 108 NACIONAL, 39, CAFÉ, PROFLEX (PAR)"],
+            ["900109-015","BOTIN PROFLEX 108 NACIONAL, 43, CAFÉ, PROFLEX (PAR)"],
+            ["900109-016","BOTIN PROFLEX 108 NACIONAL, 44, CAFÉ, PROFLEX (PAR)"],
+            ["900109-017","GUANTE ANSELL HYFLEX 11-600 NEGRO TALLA N°7 (PAR)"],
+            ["900109-018","GUANTE ANSELL HYFLEX 11-600 NEGRO TALLA N°8 (PAR)"],
+            ["900109-019","GUANTE ANSELL HYFLEX 11-600 NEGRO TALLA N°9 (PAR)"],
+            ["900109-020","CASCO MASPROT MPC-221 A/TELA AZUL"],
+            ["900109-021","CASCO MASPROT MPC-221 A/TELA BLANCO"],
+            ["900109-022","CASCO YACO TRABAJOS DE ALTURA, BLANCO"],
+            ["900109-023","RODILLERA GETPRO ECONOMICA (PAR)"],
+            ["900109-024","VISOR YALICO FV-252 CLARO 8\"X15,5\" TEMP"],
+            ["900109-025","POLAINA DESCARNE (PAR)"],
+            ["900109-026","FILTRO 3M 2091 P100 P/PART Y P/OL G (PAR)"],
+            ["900109-027","MASCARA MEDIO ROSTRO 3M 7502 T-M"],
+            ["900109-017","GUANTE ANSELL HYFLEX 11-600 NEGRO TALLA N°7 (PAR)"],
+            ["900109-018","GUANTE ANSELL HYFLEX 11-600 NEGRO TALLA N°8 (PAR)"],
+            ["900109-028","BOTIN PROFLEX PF 122C CAFÉ T-37 (PAR)"],
+            ["900109-029","BOTIN PROFLEX PF 122C CAFÉ T-38 (PAR)"],
+            ["900109-030","BOTIN PROFLEX PF 122C CAFÉ T-39 (PAR)"],
+            ["900109-031","BOTIN PROFLEX PF 122C CAFÉ T-40 (PAR)"],
+            ["900109-032","BOTIN PROFLEX PF 122C CAFÉ T-41 (PAR)"],
+            ["900109-033","BOTIN PROFLEX PF 122C CAFÉ T-42 (PAR)"],
+            ["900109-034","BOTIN PROFLEX PF 122C CAFÉ T-43 (PAR)"],
+            ["900109-035","BOTIN PROFLEX PF 122C CAFÉ T-44 (PAR)"],
+            ["900109-036","BOTIN PROFLEX PF 122C CAFÉ T-46 (PAR)"],
+            ["900109-037","LENTE IRON-X SEGURIDAD CLARO IX-09 (ANTIFOG)"],
+            ["900109-038","LENTE IRON-X SEGURIDAD GRIS IX-09 (ANTIFOG)"],
+            ["900109-039","CUBRENUCA POPLIN NARANJO- SEG38-0222"],
+            ["900109-040","GUANTE IRON-X CUT PU IGX-500 CORTE D T/S"],
+            ["900109-041","LINTERNA O LAMPARA FRONTAL RECARGABLE NACIONAL S/TALLA, S/TALLA, S/COLOR, STEELPRO"],
+            ["900109-011","BOTIN PROFLEX 108 NACIONAL, 41, CAFÉ, PROFLEX (PAR)"],
+            ["900109-042","AMORTIGUADOR FLOYD 1.5MTS CODIGO 41402067 SEGMA"],
+            ["900109-043","ARNES SEGMA COBRA LUMBAR CODIGO 41104202 NACIONAL, TALLA XXL, S/COLOR"],
+            ["900109-044","ARNES COBRA LUMBAR (ADP) MULTITALLA (M-XL) CODIGO 41104202E"],
+            ["900109-045","AMORTIGUADOR DE CAIDAS FLOYD (2 107-EST) CODIGO 41402006 - 1.5MTS"],
+            ["900109-046","ESTROBO STONES TUBULAR ELASTICO G/ESC 1.8MTS SEGMA CODIGO 41401052"],
+            ["900109-022","CASCO YACO TRABAJOS DE ALTURA, BLANCO"],
+            ["900109-031","BOTIN PROFLEX PF 122C CAFÉ T-40 (PAR)"],
+            ["900109-032","BOTIN PROFLEX PF 122C CAFÉ T-41 (PAR)"],
+            ["900109-033","BOTIN PROFLEX PF 122C CAFÉ T-42 (PAR)"],
+            ["900109-034","BOTIN PROFLEX PF 122C CAFÉ T-43 (PAR)"],
+            ["900109-047","BOTIN TEMPEST DIELECTRICO PROFLEX PF 108 RD T-39 (PAR)"],
+            ["900109-048","BOTIN TEMPEST DIELECTRICO PROFLEX PF 108 RD T-40 (PAR)"],
+            ["900109-049","BOTIN TEMPEST DIELECTRICO PROFLEX PF 108 RD T-41 (PAR)"],
+            ["900109-050","BOTIN TEMPEST DIELECTRICO PROFLEX PF 108 RD T-42 (PAR)"],
+            ["900109-051","BOTIN TEMPEST DIELECTRICO PROFLEX PF 108 RD T-43 (PAR)"],
+            ["900109-041","LINTERNA O LAMPARA FRONTAL RECARGABLE NACIONAL S/TALLA, S/TALLA, S/COLOR, STEELPRO"],
+            ["900109-052","PIJAMA CAPA IRON-X PRIMERA CAPA IMPOR 100% POLIESTER T-S"],
+            ["900109-053","PIJAMA CAPA IRON-X PRIMERA CAPA IMPOR 100% POLIESTER T-M"],
+            ["900109-054","PIJAMA CAPA IRON-X PRIMERA CAPA IMPOR 100% POLIESTER T-L"],
+            ["900109-055","PIJAMA CAPA IRON-X PRIMERA CAPA IMPOR 100% POLIESTER T-XL"],
+            ["900109-056","PIJAMA CAPA IRON-X PRIMERA CAPA IMPOR 100% POLIESTER T-2XL"],
+            ["900109-035","BOTIN PROFLEX PF 122C CAFÉ T-44 (PAR)"],
+            ["900109-057","TAPON O PROTECTOR DE OIDO LIBUS REUSABLE QUANTUM C/BL C/CO NRR/26DB 900473 (PAR)"],
+            ["900109-058","PROTECTOR DE GUANTES DE DIELECTRICO P-12 CLASE 00-0-1 SEG11-006 (PAR)"],
+            ["900109-059","GUANTE LINEPRO DIELECTRICO CLASE 1 7500V ROJO 106-8108 T-9"],
+            ["900109-022","CASCO YACO TRABAJOS DE ALTURA, BLANCO"],
+            ["900109-060","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-S"],
+            ["900109-061","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-M"],
+            ["900109-062","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-XL"],
+            ["900109-063","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-XXL"]
+        ];
+        const PREVENCIONISTAS = [
+            ["18242624-5","Luis Alberto","Sepulveda","Cortes"],
+            ["16972155-6","Jaime Andres","Silva","Henriquez"],
+            ["18354645-7","Javier Ignacio Enrique","Erazo","Godoy"],
+            ["15606803-9","Alex Rodrigo","Lorca","Valenzuela"],
+            ["15473178-4","Denisse Andrea","Pino","Diaz"],
+            ["17419225-1","Valeria Alejandra","Huichipan","Padilla"],
+            ["17859132-0","Patricio Ignacio","Pau","Salinas"]
+        ];
+
+        const UNIDAD = 'UND';   // Todo EPP se solicita por unidad
+
+        /* ── Utilidades ── */
+        // "13007195-3" → "13.007.195-3"
+        function formatRut(rut) {
+            const limpio = String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+            if (limpio.length < 2) return String(rut);
+            const dv = limpio.slice(-1);
+            let cuerpo = limpio.slice(0, -1);
+            cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return cuerpo + '-' + dv;
+        }
+
+        function nombrePersona(p) {
+            return [p[1], p[2], p[3]].filter(Boolean).join(' ');
+        }
+
+        // Sin tildes y en mayúsculas, para buscar sin que estorben los acentos
+        function norm(t) {
+            return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+        }
+
+        function esc(t) {
+            return String(t == null ? '' : t)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        /* ── Carga inicial de los desplegables ── */
+        (function initPrevencionistas() {
+            const sel = document.getElementById('prevencionista');
+            PREVENCIONISTAS.forEach(p => {
+                const o = document.createElement('option');
+                o.value = p[0];                       // el RUT identifica de forma única
+                o.textContent = nombrePersona(p);
+                sel.appendChild(o);
+            });
+            document.getElementById('total_personal').textContent = PERSONAL.length;
+        })();
+
+        function onPrevencionistaChange() {
+            const rut = document.getElementById('prevencionista').value;
+            document.getElementById('rut_prevencionista').value = rut ? formatRut(rut) : '';
+        }
+
+        function getPrevencionista() {
+            const rut = document.getElementById('prevencionista').value;
+            return PREVENCIONISTAS.find(p => p[0] === rut) || null;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           BUSCADOR DE TRABAJADORES
+        ════════════════════════════════════════════════════════════════ */
+        function filtrarTrabajadores() {
+            const q = norm(document.getElementById('buscar_trab').value.trim());
+            const cont = document.getElementById('resultados_trab');
+            if (q.length < 2) {
+                cont.classList.add('hidden');
+                cont.innerHTML = '';
+                return;
+            }
+            const terminos = q.split(/\s+/);
+            const hits = PERSONAL.filter(p => {
+                const texto = norm(nombrePersona(p) + ' ' + p[0] + ' ' + formatRut(p[0]));
+                return terminos.every(t => texto.indexOf(t) !== -1);
+            }).slice(0, 30);
+
+            cont.innerHTML = '';
+            if (!hits.length) {
+                cont.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center">Sin coincidencias.</p>';
+            } else {
+                hits.forEach(p => {
+                    const yaEsta = solicitudes.some(s => s.rut === p[0]);
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.disabled = yaEsta;
+                    b.className = 'w-full text-left p-2 transition ' +
+                        (yaEsta ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-blue-50');
+                    b.innerHTML =
+                        '<span class="block text-sm font-semibold leading-tight">' + esc(nombrePersona(p)) +
+                        (yaEsta ? ' <span class="text-[10px] bg-gray-300 text-gray-700 px-1 rounded">ya agregado</span>' : '') +
+                        '</span><span class="block text-xs text-gray-500 leading-tight">' + esc(formatRut(p[0])) + '</span>';
+                    if (!yaEsta) b.onclick = () => agregarTrabajador(p[0]);
+                    cont.appendChild(b);
+                });
+            }
+            cont.classList.remove('hidden');
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           SOLICITUDES POR TRABAJADOR
+           solicitudes: [{ id, rut, nombre, items: [{codigo, desc, cant}] }]
+           El Centro de Costo BO se lee del input al generar el PDF.
+        ════════════════════════════════════════════════════════════════ */
+        const solicitudes = [];
+        let seq = 0;
+
+        function agregarTrabajador(rut) {
+            const p = PERSONAL.find(x => x[0] === rut);
+            if (!p || solicitudes.some(s => s.rut === rut)) return;
+            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombrePersona(p), items: [] });
+            document.getElementById('buscar_trab').value = '';
+            document.getElementById('resultados_trab').classList.add('hidden');
+            renderSolicitudes();
+            const card = document.getElementById('card_t' + seq);
+            if (card) card.scrollIntoView({ block: 'nearest' });
+        }
+
+        function quitarTrabajador(id) {
+            const i = solicitudes.findIndex(s => s.id === id);
+            if (i !== -1) solicitudes.splice(i, 1);
+            renderSolicitudes();
+        }
+
+        function agregarEPP(id) {
+            const s = solicitudes.find(x => x.id === id);
+            if (!s) return;
+            const sel = document.getElementById('selepp_' + id);
+            const cantInp = document.getElementById('cant_' + id);
+            const codigo = sel.value;
+            const cant = parseInt(cantInp.value, 10);
+            if (!codigo) { alert('Seleccione un EPP de la lista.'); return; }
+            if (!cant || cant < 1) { alert('Indique una cantidad válida.'); return; }
+            if (s.items.some(it => it.codigo === codigo)) {
+                alert('Ese EPP ya está agregado para este trabajador. Modifique la cantidad en la lista.');
+                return;
+            }
+            const epp = EPP.find(e => e[0] === codigo);
+            s.items.push({ codigo: codigo, desc: epp[1], cant: cant });
+            renderSolicitudes();
+        }
+
+        function quitarEPP(id, codigo) {
+            const s = solicitudes.find(x => x.id === id);
+            if (!s) return;
+            s.items = s.items.filter(it => it.codigo !== codigo);
+            renderSolicitudes();
+        }
+
+        function cambiarCant(id, codigo, valor) {
+            const s = solicitudes.find(x => x.id === id);
+            if (!s) return;
+            const it = s.items.find(i => i.codigo === codigo);
+            if (it) it.cant = Math.max(1, parseInt(valor, 10) || 1);
+        }
+
+        // Filtra las opciones del desplegable de EPP de un trabajador
+        function filtrarEPP(id) {
+            const q = norm(document.getElementById('feppp_' + id).value.trim());
+            const sel = document.getElementById('selepp_' + id);
+            const previo = sel.value;
+            sel.innerHTML = '<option value="">Seleccione EPP...</option>';
+            EPP.filter(e => !q || norm(e[0] + ' ' + e[1]).indexOf(q) !== -1).forEach(e => {
+                const o = document.createElement('option');
+                o.value = e[0];
+                o.textContent = e[0] + ' — ' + e[1];
+                sel.appendChild(o);
+            });
+            if (previo && [...sel.options].some(o => o.value === previo)) sel.value = previo;
+        }
+
+        function renderSolicitudes() {
+            const cont = document.getElementById('lista_solicitudes');
+            // Conserva lo ya escrito en los campos de Centro de Costo
+            const bos = {};
+            solicitudes.forEach(s => {
+                const inp = document.getElementById('bo_' + s.id);
+                if (inp) bos[s.id] = inp.value;
+            });
+
+            cont.innerHTML = '';
+            document.getElementById('sin_trabajadores').classList.toggle('hidden', solicitudes.length > 0);
+
+            solicitudes.forEach((s, idx) => {
+                const div = document.createElement('div');
+                div.id = 'card_' + s.id;
+                div.className = 'border border-gray-300 rounded p-3 bg-gray-50';
+
+                const filas = s.items.length
+                    ? s.items.map(it =>
+                        '<div class="flex items-start gap-2 py-1.5 border-b border-gray-200 last:border-0">' +
+                        '<span class="flex-1 min-w-0">' +
+                        '<span class="block text-xs font-semibold leading-tight">' + esc(it.codigo) + '</span>' +
+                        '<span class="block text-xs text-gray-600 leading-tight">' + esc(it.desc) + '</span>' +
+                        '</span>' +
+                        '<input type="number" min="1" value="' + it.cant + '" title="Cantidad solicitada" ' +
+                        'onchange="cambiarCant(\'' + s.id + '\',\'' + it.codigo + '\',this.value)" ' +
+                        'class="w-16 shrink-0 border border-gray-300 p-1 rounded text-center text-sm">' +
+                        '<button type="button" onclick="quitarEPP(\'' + s.id + '\',\'' + it.codigo + '\')" ' +
+                        'class="shrink-0 w-8 h-8 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>' +
+                        '</div>').join('')
+                    : '<p class="text-xs text-gray-400 py-2 text-center">Sin EPP agregados.</p>';
+
+                div.innerHTML =
+                    '<div class="flex justify-between items-start gap-2 mb-2">' +
+                    '<span class="flex-1 min-w-0">' +
+                    '<span class="block text-sm font-bold leading-tight">' + (idx + 1) + '. ' + esc(s.nombre) + '</span>' +
+                    '<span class="block text-xs text-gray-500 leading-tight">' + esc(formatRut(s.rut)) + '</span>' +
+                    '</span>' +
+                    '<button type="button" onclick="quitarTrabajador(\'' + s.id + '\')" title="Quitar trabajador" ' +
+                    'class="shrink-0 w-9 h-9 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>' +
+                    '</div>' +
+
+                    '<label class="block text-xs font-semibold mb-1">Centro de Costo BO</label>' +
+                    '<input type="text" id="bo_' + s.id + '" placeholder="Ej: AL-10192" ' +
+                    'value="' + esc(bos[s.id] || '') + '" ' +
+                    'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 mb-3">' +
+
+                    '<div class="bg-white border border-gray-300 rounded px-2">' + filas + '</div>' +
+
+                    '<div class="mt-2 space-y-2">' +
+                    '<input type="text" id="feppp_' + s.id + '" oninput="filtrarEPP(\'' + s.id + '\')" ' +
+                    'placeholder="Filtrar EPP por código o descripción..." ' +
+                    'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">' +
+                    '<select id="selepp_' + s.id + '" class="w-full border border-gray-300 p-2 rounded text-sm bg-white"></select>' +
+                    '<div class="flex gap-2">' +
+                    '<input type="number" id="cant_' + s.id + '" min="1" value="1" placeholder="Cant." ' +
+                    'class="w-20 border border-gray-300 p-2 rounded text-center text-sm">' +
+                    '<button type="button" onclick="agregarEPP(\'' + s.id + '\')" ' +
+                    'class="flex-1 bg-blue-700 text-white text-sm font-semibold py-2 rounded hover:bg-blue-800">+ Agregar EPP</button>' +
+                    '</div></div>';
+
+                cont.appendChild(div);
+                filtrarEPP(s.id);
+            });
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           IMÁGENES (logo y firma) — mismo procesamiento que el Reporte SSO
+        ════════════════════════════════════════════════════════════════ */
+        function loadImageObj(src, opts) {
+            opts = opts || {};
+            const maxSide = opts.maxSide || 1600;
+            const asPng = !!opts.png;
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const nW = img.naturalWidth || img.width;
+                    const nH = img.naturalHeight || img.height;
+                    if (!nW || !nH) { resolve(null); return; }
+                    const scale = Math.min(1, maxSide / Math.max(nW, nH));
+                    const cw = Math.max(1, Math.round(nW * scale));
+                    const ch = Math.max(1, Math.round(nH * scale));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = cw;
+                    canvas.height = ch;
+                    const ctx = canvas.getContext('2d');
+                    if (!asPng) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, cw, ch);
+                    }
+                    ctx.drawImage(img, 0, 0, cw, ch);
+                    resolve({
+                        dataURL: asPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.82),
+                        w: cw, h: ch
+                    });
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        }
+
+        const logos = { sice: null };
+        const logosReady = Promise.all([
+            loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
+        ]);
+
+        /* ── Firma ── */
+        const canvas = document.getElementById('signature-pad');
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)',
+            penColor: 'rgb(0,0,128)'
+        });
+        let _lastSigWidth = 0;
+        function resizeCanvas(force) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const cssWidth = canvas.offsetWidth;
+            const cssHeight = canvas.offsetHeight;
+            if (force !== true && cssWidth === _lastSigWidth) return;
+            _lastSigWidth = cssWidth;
+            const data = signaturePad.toData();
+            canvas.width = cssWidth * ratio;
+            canvas.height = cssHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            signaturePad.clear();
+            if (data && data.length) signaturePad.fromData(data);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', () => setTimeout(() => resizeCanvas(true), 150));
+        setTimeout(() => resizeCanvas(true), 100);
+
+        function formatearFecha(dateValue) {
+            if (!dateValue) return '—';
+            const [y, m, d] = dateValue.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+           GENERACIÓN DEL PDF (vectorial — jsPDF)
+           Una hoja por trabajador; la firma cierra el documento.
+        ════════════════════════════════════════════════════════════════ */
+        const PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
+        const CONTENT_W = PAGE_W - MARGIN * 2;          // 180
+        const CONTENT_BOTTOM = PAGE_H - MARGIN;         // 282
+        const ALTO_FIRMA = 55;
+
+        const C_AZUL = [30, 58, 138];
+        const C_AZUL_CLARO = [219, 234, 254];
+        const C_AZUL_BORDE = [147, 197, 253];
+        const C_GRIS_TXT = [75, 85, 99];
+        const C_GRIS_BORDE = [156, 163, 175];
+        const C_GRIS_FILA = [243, 244, 246];
+        const C_NEGRO = [17, 24, 39];
+
+        function placeContain(doc, im, x, y, w, h, halign, valign) {
+            if (!im || !im.dataURL) return;
+            const r = Math.min(w / im.w, h / im.h);
+            const dw = im.w * r, dh = im.h * r;
+            const dx = x + (halign === 'l' ? 0 : halign === 'r' ? (w - dw) : (w - dw) / 2);
+            const dy = y + (valign === 't' ? 0 : valign === 'b' ? (h - dh) : (h - dh) / 2);
+            const fmt = im.dataURL.indexOf('data:image/png') === 0 ? 'PNG' : 'JPEG';
+            doc.addImage(im.dataURL, fmt, dx, dy, dw, dh);
+        }
+
+        function dibujarEncabezado(doc) {
+            placeContain(doc, logos.sice, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
+            doc.setTextColor(...C_AZUL);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.text('SOLICITUD DE ENTREGA DE EPP', MARGIN, 17);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(...C_GRIS_TXT);
+            doc.text('Equipos de Protección Personal — Bodega Central', MARGIN, 22);
+            doc.setDrawColor(...C_AZUL);
+            doc.setLineWidth(0.6);
+            doc.line(MARGIN, 29, PAGE_W - MARGIN, 29);
+        }
+
+        function tituloSeccion(doc, texto, y) {
+            doc.setFillColor(...C_AZUL_CLARO);
+            doc.rect(MARGIN, y, CONTENT_W, 7, 'F');
+            doc.setDrawColor(...C_AZUL_BORDE);
+            doc.setLineWidth(0.2);
+            doc.rect(MARGIN, y, CONTENT_W, 7, 'S');
+            doc.setTextColor(...C_AZUL);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text(texto, PAGE_W / 2, y + 4.8, { align: 'center' });
+            return y + 7;
+        }
+
+        function dibujarFirma(doc, yTop, firma, nombrePreve) {
+            const lineaY = yTop + 16 + 26;
+            placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.3);
+            doc.line(PAGE_W / 2 - 35, lineaY, PAGE_W / 2 + 35, lineaY);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text((nombrePreve || 'Prevencionista de Riesgos').toUpperCase(), PAGE_W / 2, lineaY + 6, { align: 'center' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(...C_GRIS_TXT);
+            doc.text('PREVENCIONISTA DE RIESGOS SICE', PAGE_W / 2, lineaY + 11, { align: 'center' });
+        }
+
+        async function generarPDF() {
+            const fecha = document.getElementById('fecha').value;
+            const prev = getPrevencionista();
+
+            if (!prev) { alert('Seleccione el prevencionista que retira.'); return; }
+            if (!fecha) { alert('Indique la fecha de la solicitud.'); return; }
+            if (!solicitudes.length) { alert('Agregue al menos un trabajador.'); return; }
+
+            const sinEPP = solicitudes.filter(s => !s.items.length);
+            if (sinEPP.length) {
+                alert('Estos trabajadores no tienen EPP agregados:\n\n' +
+                    sinEPP.map(s => '• ' + s.nombre).join('\n'));
+                return;
+            }
+            const sinBO = solicitudes.filter(s => !document.getElementById('bo_' + s.id).value.trim());
+            if (sinBO.length) {
+                alert('Falta el Centro de Costo BO de:\n\n' +
+                    sinBO.map(s => '• ' + s.nombre).join('\n'));
+                return;
+            }
+
+            document.getElementById('loader').style.display = 'flex';
+
+            try {
+                await logosReady;
+
+                let firma = null;
+                if (signaturePad.toData().length > 0) {
+                    firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+                doc.setProperties({ title: 'Solicitud de EPP - SICE' });
+
+                const nombrePreve = nombrePersona(prev);
+
+                solicitudes.forEach((s, idx) => {
+                    if (idx > 0) doc.addPage();
+                    const esUltima = (idx === solicitudes.length - 1);
+                    const bo = document.getElementById('bo_' + s.id).value.trim();
+
+                    dibujarEncabezado(doc);
+
+                    /* Datos de la solicitud */
+                    doc.autoTable({
+                        startY: 34,
+                        margin: { left: MARGIN, right: MARGIN },
+                        tableWidth: CONTENT_W,
+                        theme: 'grid',
+                        styles: {
+                            font: 'helvetica', fontSize: 9, valign: 'top', overflow: 'linebreak',
+                            cellPadding: { top: 1.6, bottom: 1.6, left: 2.2, right: 2.2 },
+                            lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 62, fillColor: C_GRIS_FILA, fontStyle: 'bold' },
+                            1: { cellWidth: CONTENT_W - 62 }
+                        },
+                        body: [
+                            ['Empresa', 'SICE AGENCIA CHILE S.A.'],
+                            ['Fecha de solicitud', formatearFecha(fecha)],
+                            ['Nombres completos (quien retira)', nombrePreve],
+                            ['RUT (quien retira)', formatRut(prev[0])],
+                            ['Costo BO', bo],
+                            ['Nombres completos (trabajador)', s.nombre],
+                            ['RUT (trabajador)', formatRut(s.rut)],
+                        ]
+                    });
+
+                    /* Detalle de EPP solicitados */
+                    let yT = doc.lastAutoTable.finalY + 6;
+                    const tablaStart = tituloSeccion(doc, `EPP SOLICITADOS (${s.items.length})`, yT);
+
+                    doc.autoTable({
+                        startY: tablaStart,
+                        margin: { left: MARGIN, right: MARGIN },
+                        tableWidth: CONTENT_W,
+                        theme: 'grid',
+                        styles: {
+                            font: 'helvetica', fontSize: 8, valign: 'middle', overflow: 'linebreak',
+                            cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
+                            lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                        },
+                        headStyles: {
+                            fillColor: C_GRIS_FILA, textColor: C_NEGRO, fontStyle: 'bold',
+                            lineColor: C_GRIS_BORDE, lineWidth: 0.1, halign: 'center', fontSize: 8
+                        },
+                        columnStyles: {
+                            0: { cellWidth: 24 },
+                            1: { cellWidth: 84 },
+                            2: { cellWidth: 18, halign: 'center' },
+                            3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+                            4: { cellWidth: CONTENT_W - 148, halign: 'center' }
+                        },
+                        head: [['CODIGO', 'DESCRIPCION', 'UNIDAD', 'SOLICITADO', 'CENTRO DE COSTO']],
+                        body: s.items.map(it => [it.codigo, it.desc, UNIDAD, String(it.cant), bo])
+                    });
+
+                    if (esUltima) {
+                        let yF = doc.lastAutoTable.finalY + 4;
+                        if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
+                        dibujarFirma(doc, yF, firma, nombrePreve);
+                    }
+                });
+
+                const [y, m, d] = fecha.split('-');
+                doc.save(`Solicitud_EPP_${y}${m}${d}.pdf`);
+
+                document.getElementById('loader').style.display = 'none';
+                alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('loader').style.display = 'none';
+                alert('Error al generar el PDF. Intenta nuevamente.');
+            }
+        }
+
+        /* Cierra la lista de resultados al tocar fuera del buscador */
+        document.addEventListener('click', e => {
+            if (!e.target.closest || (!e.target.closest('#resultados_trab') && e.target.id !== 'buscar_trab')) {
+                document.getElementById('resultados_trab').classList.add('hidden');
+            }
+        });
+
+        renderSolicitudes();
+    </script>
+</body>
+
+</html>
