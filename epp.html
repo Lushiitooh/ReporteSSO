@@ -106,25 +106,32 @@
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">2. Entrega de EPP</h2>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Agregar trabajador</label>
-                    <input type="text" id="buscar_trab" autocomplete="off" oninput="filtrarTrabajadores()"
-                        onfocus="filtrarTrabajadores()" placeholder="Escriba nombre, apellido o RUT..."
-                        class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    <div id="resultados_trab"
-                        class="hidden mt-1 border border-gray-300 rounded bg-white max-h-56 overflow-y-auto divide-y divide-gray-200">
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <span id="total_personal">0</span> trabajadores en el listado maestro.
-                    </p>
-                </div>
-
                 <div id="lista_solicitudes" class="space-y-4"></div>
 
                 <p id="sin_trabajadores"
                     class="text-sm text-gray-400 p-3 border border-dashed border-gray-300 rounded text-center">
                     Aún no ha agregado trabajadores.
                 </p>
+
+                <button type="button" id="btn_agregar_trab" onclick="abrirBuscadorTrab()"
+                    class="w-full mt-3 border-2 border-dashed border-blue-400 text-blue-700 font-semibold py-3 rounded hover:bg-blue-50 transition text-sm">
+                    + Agregar trabajador
+                </button>
+
+                <div id="box_buscar" class="hidden mt-3 border border-blue-300 rounded p-3 bg-blue-50">
+                    <label class="block text-sm font-semibold mb-1">Buscar trabajador</label>
+                    <input type="text" id="buscar_trab" autocomplete="off" oninput="filtrarTrabajadores()"
+                        onfocus="filtrarTrabajadores()" placeholder="Escriba nombre, apellido o RUT..."
+                        class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-white">
+                    <div id="resultados_trab"
+                        class="hidden mt-1 border border-gray-300 rounded bg-white max-h-56 overflow-y-auto divide-y divide-gray-200">
+                    </div>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-xs text-gray-600"><span id="total_personal">0</span> en el maestro</span>
+                        <button type="button" onclick="cerrarBuscadorTrab()"
+                            class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded font-semibold hover:bg-gray-300">Cancelar</button>
+                    </div>
+                </div>
             </section>
 
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
@@ -316,7 +323,7 @@
             ["16201263-0","Cristian Andres","Escobar","Muñoz"],["16858989-1","Carlos Ignacio","Robledo","Ledesma"],["17316971-K","Andres Esteban","Rojas","Hernandez"],
             ["13778560-9","Luis Hernan","Sereño","Diaz"]
         ];
-        const EPP = [
+        const EPP_RAW = [
             ["900109-001","PANTALON ACTIVEX SOLDADOR DESCARNE TR, TALLA L"],
             ["900109-002","CHAQUETA ACTIVEX SOLDADOR DESCARNE TR, TALLA L"],
             ["900109-003","PROTECTOR SOLAR FPS 50+ LEBLON (POMO 190GR)"],
@@ -392,6 +399,17 @@
             ["900109-062","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-XL"],
             ["900109-063","CHALECO GEOLOGO GABARDINA AMARILLO FLUOR LOGO Y NUMERO DE EMERGENCIA T-XXL"]
         ];
+        // El maestro trae filas repetidas (mismo codigo y misma descripcion).
+        // Se deja una sola por codigo para que la busqueda no muestre duplicados.
+        const EPP = (() => {
+            const vistos = new Set();
+            return EPP_RAW.filter(e => {
+                if (vistos.has(e[0])) return false;
+                vistos.add(e[0]);
+                return true;
+            });
+        })();
+
         const PREVENCIONISTAS = [
             ["18242624-5","Luis Alberto","Sepulveda","Cortes"],
             ["16972155-6","Jaime Andres","Silva","Henriquez"],
@@ -499,38 +517,51 @@
         const solicitudes = [];
         let seq = 0;
 
+        /* El buscador vive al final de la lista: se abre con el botón, se
+           cierra al elegir a alguien y deja el botón listo para el siguiente. */
+        function mostrarBuscadorTrab(conFoco) {
+            document.getElementById('box_buscar').classList.remove('hidden');
+            document.getElementById('btn_agregar_trab').classList.add('hidden');
+            const inp = document.getElementById('buscar_trab');
+            inp.value = '';
+            document.getElementById('resultados_trab').classList.add('hidden');
+            if (conFoco) {
+                inp.focus();
+                document.getElementById('box_buscar').scrollIntoView({ block: 'center' });
+            }
+        }
+        function abrirBuscadorTrab() { mostrarBuscadorTrab(true); }
+
+        function cerrarBuscadorTrab() {
+            document.getElementById('box_buscar').classList.add('hidden');
+            document.getElementById('btn_agregar_trab').classList.remove('hidden');
+            document.getElementById('buscar_trab').value = '';
+            document.getElementById('resultados_trab').classList.add('hidden');
+        }
+
         function agregarTrabajador(rut) {
             const p = PERSONAL.find(x => x[0] === rut);
             if (!p || solicitudes.some(s => s.rut === rut)) return;
             solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombrePersona(p), items: [] });
-            document.getElementById('buscar_trab').value = '';
-            document.getElementById('resultados_trab').classList.add('hidden');
+            cerrarBuscadorTrab();
             renderSolicitudes();
             const card = document.getElementById('card_t' + seq);
-            if (card) card.scrollIntoView({ block: 'nearest' });
+            if (card) card.scrollIntoView({ block: 'center' });
         }
 
         function quitarTrabajador(id) {
             const i = solicitudes.findIndex(s => s.id === id);
             if (i !== -1) solicitudes.splice(i, 1);
             renderSolicitudes();
+            if (!solicitudes.length) mostrarBuscadorTrab(false);
         }
 
-        function agregarEPP(id) {
+        function agregarEPP(id, codigo) {
             const s = solicitudes.find(x => x.id === id);
-            if (!s) return;
-            const sel = document.getElementById('selepp_' + id);
-            const cantInp = document.getElementById('cant_' + id);
-            const codigo = sel.value;
-            const cant = parseInt(cantInp.value, 10);
-            if (!codigo) { alert('Seleccione un EPP de la lista.'); return; }
-            if (!cant || cant < 1) { alert('Indique una cantidad válida.'); return; }
-            if (s.items.some(it => it.codigo === codigo)) {
-                alert('Ese EPP ya está agregado para este trabajador. Modifique la cantidad en la lista.');
-                return;
-            }
+            if (!s || s.items.some(it => it.codigo === codigo)) return;
             const epp = EPP.find(e => e[0] === codigo);
-            s.items.push({ codigo: codigo, desc: epp[1], cant: cant });
+            if (!epp) return;
+            s.items.push({ codigo: codigo, desc: epp[1], cant: 1 });
             renderSolicitudes();
         }
 
@@ -548,19 +579,48 @@
             if (it) it.cant = Math.max(1, parseInt(valor, 10) || 1);
         }
 
-        // Filtra las opciones del desplegable de EPP de un trabajador
+        /* Buscador de EPP: mismo comportamiento que el de trabajadores.
+           Manda el nombre del EPP; el código va en pequeño como referencia. */
+        const MAX_RESULTADOS_EPP = 40;
         function filtrarEPP(id) {
-            const q = norm(document.getElementById('feppp_' + id).value.trim());
-            const sel = document.getElementById('selepp_' + id);
-            const previo = sel.value;
-            sel.innerHTML = '<option value="">Seleccione EPP...</option>';
-            EPP.filter(e => !q || norm(e[0] + ' ' + e[1]).indexOf(q) !== -1).forEach(e => {
-                const o = document.createElement('option');
-                o.value = e[0];
-                o.textContent = e[0] + ' — ' + e[1];
-                sel.appendChild(o);
+            const inp = document.getElementById('feppp_' + id);
+            const cont = document.getElementById('reppp_' + id);
+            const s = solicitudes.find(x => x.id === id);
+            if (!inp || !cont || !s) return;
+            const q = norm(inp.value.trim());
+            const terminos = q ? q.split(/\s+/) : [];
+            const todos = EPP.filter(e => {
+                const texto = norm(e[1] + ' ' + e[0]);
+                return terminos.every(t => texto.indexOf(t) !== -1);
             });
-            if (previo && [...sel.options].some(o => o.value === previo)) sel.value = previo;
+            const hits = todos.slice(0, MAX_RESULTADOS_EPP);
+
+            cont.innerHTML = '';
+            if (!hits.length) {
+                cont.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center">Sin coincidencias.</p>';
+            } else {
+                hits.forEach(e => {
+                    const ya = s.items.some(it => it.codigo === e[0]);
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.disabled = ya;
+                    b.className = 'w-full text-left p-2 transition ' +
+                        (ya ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-blue-50');
+                    b.innerHTML =
+                        '<span class="block text-xs font-semibold leading-tight">' + esc(e[1]) +
+                        (ya ? ' <span class="text-[10px] bg-gray-300 text-gray-700 px-1 rounded">ya agregado</span>' : '') +
+                        '</span><span class="block text-[10px] text-gray-500 leading-tight">' + esc(e[0]) + '</span>';
+                    if (!ya) b.onclick = () => agregarEPP(id, e[0]);
+                    cont.appendChild(b);
+                });
+                if (todos.length > hits.length) {
+                    const p = document.createElement('p');
+                    p.className = 'p-2 text-[11px] text-gray-500 text-center bg-gray-50';
+                    p.textContent = 'Mostrando ' + hits.length + ' de ' + todos.length + '. Afine la búsqueda.';
+                    cont.appendChild(p);
+                }
+            }
+            cont.classList.remove('hidden');
         }
 
         function renderSolicitudes() {
@@ -573,7 +633,10 @@
             });
 
             cont.innerHTML = '';
-            document.getElementById('sin_trabajadores').classList.toggle('hidden', solicitudes.length > 0);
+            const vacio = solicitudes.length === 0;
+            document.getElementById('sin_trabajadores').classList.toggle('hidden', !vacio);
+            document.getElementById('btn_agregar_trab').textContent =
+                vacio ? '+ Agregar trabajador' : '+ Agregar otro trabajador';
 
             solicitudes.forEach((s, idx) => {
                 const div = document.createElement('div');
@@ -612,20 +675,16 @@
 
                     '<div class="bg-white border border-gray-300 rounded px-2">' + filas + '</div>' +
 
-                    '<div class="mt-2 space-y-2">' +
-                    '<input type="text" id="feppp_' + s.id + '" oninput="filtrarEPP(\'' + s.id + '\')" ' +
-                    'placeholder="Filtrar EPP por código o descripción..." ' +
+                    '<div class="mt-2">' +
+                    '<input type="text" id="feppp_' + s.id + '" autocomplete="off" ' +
+                    'oninput="filtrarEPP(\'' + s.id + '\')" onfocus="filtrarEPP(\'' + s.id + '\')" ' +
+                    'placeholder="Buscar EPP por nombre o código..." ' +
                     'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">' +
-                    '<select id="selepp_' + s.id + '" class="w-full border border-gray-300 p-2 rounded text-sm bg-white"></select>' +
-                    '<div class="flex gap-2">' +
-                    '<input type="number" id="cant_' + s.id + '" min="1" value="1" placeholder="Cant." ' +
-                    'class="w-20 border border-gray-300 p-2 rounded text-center text-sm">' +
-                    '<button type="button" onclick="agregarEPP(\'' + s.id + '\')" ' +
-                    'class="flex-1 bg-blue-700 text-white text-sm font-semibold py-2 rounded hover:bg-blue-800">+ Agregar EPP</button>' +
+                    '<div id="reppp_' + s.id + '" ' +
+                    'class="hidden mt-1 border border-gray-300 rounded bg-white max-h-56 overflow-y-auto divide-y divide-gray-200">' +
                     '</div></div>';
 
                 cont.appendChild(div);
-                filtrarEPP(s.id);
             });
         }
 
@@ -693,6 +752,17 @@
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('orientationchange', () => setTimeout(() => resizeCanvas(true), 150));
         setTimeout(() => resizeCanvas(true), 100);
+
+        /* Suma las cantidades de un mismo EPP en todos los trabajadores. */
+        function getConsolidado() {
+            const mapa = new Map();
+            solicitudes.forEach(s => s.items.forEach(it => {
+                const acum = mapa.get(it.codigo);
+                if (acum) acum.cant += it.cant;
+                else mapa.set(it.codigo, { codigo: it.codigo, desc: it.desc, cant: it.cant });
+            }));
+            return [...mapa.values()].sort((a, b) => a.codigo.localeCompare(b.codigo));
+        }
 
         function formatearFecha(dateValue) {
             if (!dateValue) return '—';
@@ -870,12 +940,74 @@
                         body: s.items.map(it => [it.codigo, it.desc, UNIDAD, String(it.cant), bo])
                     });
 
-                    if (esUltima) {
-                        let yF = doc.lastAutoTable.finalY + 4;
-                        if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
-                        dibujarFirma(doc, yF, firma, nombrePreve);
-                    }
                 });
+
+                /* ── Hoja final: consolidado para descuento de inventario ── */
+                const consolidado = getConsolidado();
+                const totalUnidades = consolidado.reduce((a, c) => a + c.cant, 0);
+
+                doc.addPage();
+                dibujarEncabezado(doc);
+
+                doc.autoTable({
+                    startY: 34,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 9, valign: 'top', overflow: 'linebreak',
+                        cellPadding: { top: 1.6, bottom: 1.6, left: 2.2, right: 2.2 },
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 62, fillColor: C_GRIS_FILA, fontStyle: 'bold' },
+                        1: { cellWidth: CONTENT_W - 62 }
+                    },
+                    body: [
+                        ['Empresa', 'SICE AGENCIA CHILE S.A.'],
+                        ['Fecha de solicitud', formatearFecha(fecha)],
+                        ['Nombres completos (quien retira)', nombrePreve],
+                        ['RUT (quien retira)', formatRut(prev[0])],
+                        ['Trabajadores incluidos', String(solicitudes.length)],
+                    ]
+                });
+
+                let yC = doc.lastAutoTable.finalY + 6;
+                const inicioCons = tituloSeccion(doc, 'CONSOLIDADO TOTAL DE EPP SOLICITADOS', yC);
+
+                doc.autoTable({
+                    startY: inicioCons,
+                    margin: { left: MARGIN, right: MARGIN },
+                    tableWidth: CONTENT_W,
+                    theme: 'grid',
+                    styles: {
+                        font: 'helvetica', fontSize: 8, valign: 'middle', overflow: 'linebreak',
+                        cellPadding: { top: 1.4, bottom: 1.4, left: 2, right: 2 },
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, textColor: C_NEGRO
+                    },
+                    headStyles: {
+                        fillColor: C_GRIS_FILA, textColor: C_NEGRO, fontStyle: 'bold',
+                        lineColor: C_GRIS_BORDE, lineWidth: 0.1, halign: 'center', fontSize: 8
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 26 },
+                        1: { cellWidth: 100 },
+                        2: { cellWidth: 20, halign: 'center' },
+                        3: { cellWidth: CONTENT_W - 146, halign: 'center', fontStyle: 'bold' }
+                    },
+                    head: [['CODIGO', 'DESCRIPCION', 'UNIDAD', 'TOTAL SOLICITADO']],
+                    body: consolidado.map(c => [c.codigo, c.desc, UNIDAD, String(c.cant)]).concat([[
+                        { content: 'TOTAL DE UNIDADES', colSpan: 3,
+                          styles: { halign: 'right', fontStyle: 'bold', fillColor: C_GRIS_FILA } },
+                        { content: String(totalUnidades),
+                          styles: { halign: 'center', fontStyle: 'bold', fillColor: C_GRIS_FILA } }
+                    ]])
+                });
+
+                /* ── Firma: cierra el documento ── */
+                let yF = doc.lastAutoTable.finalY + 4;
+                if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
+                dibujarFirma(doc, yF, firma, nombrePreve);
 
                 const [y, m, d] = fecha.split('-');
                 doc.save(`Solicitud_EPP_${y}${m}${d}.pdf`);
@@ -889,14 +1021,21 @@
             }
         }
 
-        /* Cierra la lista de resultados al tocar fuera del buscador */
+        /* Cierra las listas de resultados al tocar fuera de su buscador */
         document.addEventListener('click', e => {
-            if (!e.target.closest || (!e.target.closest('#resultados_trab') && e.target.id !== 'buscar_trab')) {
+            const t = e.target;
+            if (!t || !t.closest) return;
+            if (!t.closest('#resultados_trab') && t.id !== 'buscar_trab') {
                 document.getElementById('resultados_trab').classList.add('hidden');
             }
+            document.querySelectorAll('[id^="reppp_"]').forEach(cont => {
+                const id = cont.id.slice('reppp_'.length);
+                if (!t.closest('#' + cont.id) && t.id !== 'feppp_' + id) cont.classList.add('hidden');
+            });
         });
 
         renderSolicitudes();
+        mostrarBuscadorTrab(false);   // aún no hay trabajadores: parte abierto
     </script>
 </body>
 
