@@ -131,6 +131,25 @@
                         <button type="button" onclick="cerrarBuscadorTrab()"
                             class="text-xs bg-gray-200 text-gray-700 px-3 py-1 rounded font-semibold hover:bg-gray-300">Cancelar</button>
                     </div>
+
+                    <button type="button" id="btn_manual_trab" onclick="abrirManualTrab()"
+                        class="w-full mt-2 text-xs text-blue-700 underline font-semibold py-1 hover:text-blue-900">
+                        ¿No aparece en el listado? Agregarlo manualmente
+                    </button>
+
+                    <div id="manual_trab" class="hidden mt-2 border-t border-blue-300 pt-2 space-y-2">
+                        <input type="text" id="mt_nombre" placeholder="Nombre completo"
+                            class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                        <input type="text" id="mt_rut" placeholder="RUT (opcional)"
+                            class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                        <div class="flex gap-2">
+                            <button type="button" onclick="confirmarTrabajadorManual()"
+                                class="flex-1 bg-blue-700 text-white text-sm font-semibold py-2 rounded hover:bg-blue-800">Agregar
+                                trabajador</button>
+                            <button type="button" onclick="cerrarManualTrab()"
+                                class="bg-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded hover:bg-gray-300">Cancelar</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -434,6 +453,11 @@
             return cuerpo + '-' + dv;
         }
 
+        // Un trabajador agregado a mano puede no traer RUT
+        function rutMostrar(rut) {
+            return rut ? formatRut(rut) : '—';
+        }
+
         function nombrePersona(p) {
             return [p[1], p[2], p[3]].filter(Boolean).join(' ');
         }
@@ -540,10 +564,46 @@
             document.getElementById('resultados_trab').classList.add('hidden');
         }
 
+        function abrirManualTrab() {
+            document.getElementById('manual_trab').classList.remove('hidden');
+            document.getElementById('btn_manual_trab').classList.add('hidden');
+            document.getElementById('resultados_trab').classList.add('hidden');
+            document.getElementById('mt_nombre').focus();
+        }
+
+        function cerrarManualTrab() {
+            document.getElementById('manual_trab').classList.add('hidden');
+            document.getElementById('btn_manual_trab').classList.remove('hidden');
+            document.getElementById('mt_nombre').value = '';
+            document.getElementById('mt_rut').value = '';
+        }
+
+        /* Trabajador fuera del maestro. Solo el nombre es obligatorio. */
+        function confirmarTrabajadorManual() {
+            const nombre = document.getElementById('mt_nombre').value.trim();
+            const rut = document.getElementById('mt_rut').value.trim();
+            if (!nombre) {
+                alert('Indique el nombre del trabajador.');
+                document.getElementById('mt_nombre').focus();
+                return;
+            }
+            if (rut && solicitudes.some(x => x.rut && norm(x.rut) === norm(rut))) {
+                alert('Ese RUT ya está agregado en esta solicitud.');
+                return;
+            }
+            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombre, manual: true, items: [] });
+            cerrarManualTrab();
+            cerrarBuscadorTrab();
+            renderSolicitudes();
+            const card = document.getElementById('card_t' + seq);
+            if (card) card.scrollIntoView({ block: 'center' });
+        }
+
         function agregarTrabajador(rut) {
             const p = PERSONAL.find(x => x[0] === rut);
             if (!p || solicitudes.some(s => s.rut === rut)) return;
             solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombrePersona(p), items: [] });
+            cerrarManualTrab();
             cerrarBuscadorTrab();
             renderSolicitudes();
             const card = document.getElementById('card_t' + seq);
@@ -566,18 +626,56 @@
             renderSolicitudes();
         }
 
-        function quitarEPP(id, codigo) {
+        function abrirManualEPP(id) {
+            document.getElementById('mepp_' + id).classList.remove('hidden');
+            document.getElementById('btnmepp_' + id).classList.add('hidden');
+            document.getElementById('reppp_' + id).classList.add('hidden');
+            document.getElementById('me_desc_' + id).focus();
+        }
+
+        function cerrarManualEPP(id) {
+            const box = document.getElementById('mepp_' + id);
+            if (!box) return;
+            box.classList.add('hidden');
+            document.getElementById('btnmepp_' + id).classList.remove('hidden');
+            document.getElementById('me_cod_' + id).value = '';
+            document.getElementById('me_desc_' + id).value = '';
+            document.getElementById('me_cant_' + id).value = '1';
+        }
+
+        /* EPP que aún no está en el maestro. Basta con el código o el nombre:
+           el resto de la información la tiene Bodega Central. */
+        function confirmarEPPManual(id) {
             const s = solicitudes.find(x => x.id === id);
             if (!s) return;
-            s.items = s.items.filter(it => it.codigo !== codigo);
+            const codigo = document.getElementById('me_cod_' + id).value.trim();
+            const desc = document.getElementById('me_desc_' + id).value.trim().toUpperCase();
+            const cant = Math.max(1, parseInt(document.getElementById('me_cant_' + id).value, 10) || 1);
+            if (!codigo && !desc) {
+                alert('Indique al menos el código o el nombre del EPP.');
+                document.getElementById('me_desc_' + id).focus();
+                return;
+            }
+            if (codigo && s.items.some(it => it.codigo === codigo)) {
+                alert('Ese código ya está agregado para este trabajador.');
+                return;
+            }
+            s.items.push({ codigo: codigo, desc: desc, cant: cant, manual: true });
+            cerrarManualEPP(id);
             renderSolicitudes();
         }
 
-        function cambiarCant(id, codigo, valor) {
+        function quitarEPP(id, pos) {
             const s = solicitudes.find(x => x.id === id);
             if (!s) return;
-            const it = s.items.find(i => i.codigo === codigo);
-            if (it) it.cant = Math.max(1, parseInt(valor, 10) || 1);
+            s.items.splice(pos, 1);
+            renderSolicitudes();
+        }
+
+        function cambiarCant(id, pos, valor) {
+            const s = solicitudes.find(x => x.id === id);
+            if (!s || !s.items[pos]) return;
+            s.items[pos].cant = Math.max(1, parseInt(valor, 10) || 1);
         }
 
         /* Buscador de EPP: mismo comportamiento que el de trabajadores.
@@ -627,10 +725,17 @@
         function renderSolicitudes() {
             const cont = document.getElementById('lista_solicitudes');
             // Conserva lo ya escrito en los campos de Centro de Costo
-            const bos = {};
+            const prevEstado = {};
             solicitudes.forEach(s => {
-                const inp = document.getElementById('bo_' + s.id);
-                if (inp) bos[s.id] = inp.value;
+                const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+                const box = document.getElementById('mepp_' + s.id);
+                prevEstado[s.id] = {
+                    bo: val('bo_' + s.id),
+                    abierto: box ? !box.classList.contains('hidden') : false,
+                    cod: val('me_cod_' + s.id),
+                    desc: val('me_desc_' + s.id),
+                    cant: val('me_cant_' + s.id) || '1'
+                };
             });
 
             cont.innerHTML = '';
@@ -644,17 +749,23 @@
                 div.id = 'card_' + s.id;
                 div.className = 'border border-gray-300 rounded p-3 bg-gray-50';
 
+                const est = prevEstado[s.id] || { bo: '', abierto: false, cod: '', desc: '', cant: '1' };
+
                 const filas = s.items.length
-                    ? s.items.map(it =>
-                        '<div class="flex items-start gap-2 py-1.5 border-b border-gray-200 last:border-0">' +
+                    ? s.items.map((it, pos) =>
+                        '<div class="flex items-start gap-2 py-1.5 border-b border-gray-200 last:border-0' +
+                        (it.manual ? ' bg-amber-50' : '') + '">' +
                         '<span class="flex-1 min-w-0">' +
-                        '<span class="block text-xs font-semibold leading-tight">' + esc(it.codigo) + '</span>' +
-                        '<span class="block text-xs text-gray-600 leading-tight">' + esc(it.desc) + '</span>' +
+                        '<span class="block text-xs font-semibold leading-tight">' +
+                        esc(it.codigo || 'Sin código') +
+                        (it.manual ? ' <span class="text-[10px] bg-amber-500 text-white px-1 rounded">MANUAL</span>' : '') +
+                        '</span>' +
+                        '<span class="block text-xs text-gray-600 leading-tight">' + esc(it.desc || '—') + '</span>' +
                         '</span>' +
                         '<input type="number" min="1" value="' + it.cant + '" title="Cantidad solicitada" ' +
-                        'onchange="cambiarCant(\'' + s.id + '\',\'' + it.codigo + '\',this.value)" ' +
+                        'onchange="cambiarCant(\'' + s.id + '\',' + pos + ',this.value)" ' +
                         'class="w-16 shrink-0 border border-gray-300 p-1 rounded text-center text-sm">' +
-                        '<button type="button" onclick="quitarEPP(\'' + s.id + '\',\'' + it.codigo + '\')" ' +
+                        '<button type="button" onclick="quitarEPP(\'' + s.id + '\',' + pos + ')" ' +
                         'class="shrink-0 w-8 h-8 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>' +
                         '</div>').join('')
                     : '<p class="text-xs text-gray-400 py-2 text-center">Sin EPP agregados.</p>';
@@ -662,8 +773,10 @@
                 div.innerHTML =
                     '<div class="flex justify-between items-start gap-2 mb-2">' +
                     '<span class="flex-1 min-w-0">' +
-                    '<span class="block text-sm font-bold leading-tight">' + (idx + 1) + '. ' + esc(s.nombre) + '</span>' +
-                    '<span class="block text-xs text-gray-500 leading-tight">' + esc(formatRut(s.rut)) + '</span>' +
+                    '<span class="block text-sm font-bold leading-tight">' + (idx + 1) + '. ' + esc(s.nombre) +
+                    (s.manual ? ' <span class="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded align-middle">MANUAL</span>' : '') +
+                    '</span>' +
+                    '<span class="block text-xs text-gray-500 leading-tight">' + esc(rutMostrar(s.rut)) + '</span>' +
                     '</span>' +
                     '<button type="button" onclick="quitarTrabajador(\'' + s.id + '\')" title="Quitar trabajador" ' +
                     'class="shrink-0 w-9 h-9 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>' +
@@ -671,7 +784,7 @@
 
                     '<label class="block text-xs font-semibold mb-1">Centro de Costo BO</label>' +
                     '<input type="text" id="bo_' + s.id + '" placeholder="Ej: AL-10192" ' +
-                    'value="' + esc(bos[s.id] || '') + '" ' +
+                    'value="' + esc(est.bo) + '" ' +
                     'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 mb-3">' +
 
                     '<div class="bg-white border border-gray-300 rounded px-2">' + filas + '</div>' +
@@ -683,9 +796,34 @@
                     'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">' +
                     '<div id="reppp_' + s.id + '" ' +
                     'class="hidden mt-1 border border-gray-300 rounded bg-white max-h-56 overflow-y-auto divide-y divide-gray-200">' +
-                    '</div></div>';
+                    '</div>' +
+
+                    '<button type="button" id="btnmepp_' + s.id + '" onclick="abrirManualEPP(\'' + s.id + '\')" ' +
+                    'class="w-full mt-2 text-xs text-blue-700 underline font-semibold py-1 hover:text-blue-900">' +
+                    '¿No aparece el EPP? Agregarlo manualmente</button>' +
+
+                    '<div id="mepp_' + s.id + '" class="hidden mt-2 border border-amber-300 rounded p-2 bg-amber-50 space-y-2">' +
+                    '<p class="text-[11px] text-amber-800 font-semibold">EPP FUERA DEL LISTADO</p>' +
+                    '<input type="text" id="me_cod_' + s.id + '" placeholder="Código (opcional)" ' +
+                    'value="' + esc(est.cod) + '" ' +
+                    'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">' +
+                    '<input type="text" id="me_desc_' + s.id + '" placeholder="Nombre o descripción del EPP" ' +
+                    'value="' + esc(est.desc) + '" ' +
+                    'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500">' +
+                    '<div class="flex gap-2">' +
+                    '<input type="number" id="me_cant_' + s.id + '" min="1" value="' + esc(est.cant) + '" title="Cantidad" ' +
+                    'class="w-20 border border-gray-300 p-2 rounded text-center text-sm">' +
+                    '<button type="button" onclick="confirmarEPPManual(\'' + s.id + '\')" ' +
+                    'class="flex-1 bg-amber-600 text-white text-sm font-semibold py-2 rounded hover:bg-amber-700">Agregar EPP</button>' +
+                    '<button type="button" onclick="cerrarManualEPP(\'' + s.id + '\')" ' +
+                    'class="bg-gray-200 text-gray-700 text-sm font-semibold px-3 py-2 rounded hover:bg-gray-300">✕</button>' +
+                    '</div></div></div>';
 
                 cont.appendChild(div);
+                if (est.abierto) {
+                    document.getElementById('mepp_' + s.id).classList.remove('hidden');
+                    document.getElementById('btnmepp_' + s.id).classList.add('hidden');
+                }
             });
         }
 
@@ -758,11 +896,15 @@
         function getConsolidado() {
             const mapa = new Map();
             solicitudes.forEach(s => s.items.forEach(it => {
-                const acum = mapa.get(it.codigo);
+                // Los EPP sin código se agrupan por su nombre
+                const clave = it.codigo ? 'c:' + it.codigo : 'd:' + norm(it.desc);
+                const acum = mapa.get(clave);
                 if (acum) acum.cant += it.cant;
-                else mapa.set(it.codigo, { codigo: it.codigo, desc: it.desc, cant: it.cant });
+                else mapa.set(clave, { codigo: it.codigo, desc: it.desc, cant: it.cant });
             }));
-            return [...mapa.values()].sort((a, b) => a.codigo.localeCompare(b.codigo));
+            // Los sin código quedan al final
+            return [...mapa.values()].sort((a, b) =>
+                (a.codigo || '\uffff').localeCompare(b.codigo || '\uffff'));
         }
 
         function formatearFecha(dateValue) {
@@ -908,7 +1050,7 @@
                             ['RUT (quien retira)', formatRut(prev[0])],
                             ['Costo BO', bo],
                             ['Nombres completos (trabajador)', s.nombre],
-                            ['RUT (trabajador)', formatRut(s.rut)],
+                            ['RUT (trabajador)', rutMostrar(s.rut)],
                         ]
                     });
 
@@ -938,7 +1080,7 @@
                             4: { cellWidth: CONTENT_W - 148, halign: 'center' }
                         },
                         head: [['CODIGO', 'DESCRIPCION', 'UNIDAD', 'SOLICITADO', 'CENTRO DE COSTO']],
-                        body: s.items.map(it => [it.codigo, it.desc, UNIDAD, String(it.cant), bo])
+                        body: s.items.map(it => [it.codigo || '—', it.desc || '—', UNIDAD, String(it.cant), bo])
                     });
 
                 });
@@ -997,7 +1139,7 @@
                         3: { cellWidth: CONTENT_W - 146, halign: 'center', fontStyle: 'bold' }
                     },
                     head: [['CODIGO', 'DESCRIPCION', 'UNIDAD', 'TOTAL SOLICITADO']],
-                    body: consolidado.map(c => [c.codigo, c.desc, UNIDAD, String(c.cant)]).concat([[
+                    body: consolidado.map(c => [c.codigo || '—', c.desc || '—', UNIDAD, String(c.cant)]).concat([[
                         { content: 'TOTAL DE UNIDADES', colSpan: 3,
                           styles: { halign: 'right', fontStyle: 'bold', fillColor: C_GRIS_FILA } },
                         { content: String(totalUnidades),
