@@ -159,14 +159,38 @@
 
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Firma del Prevencionista</h2>
+
+                <div id="firma_box" class="hidden mb-3 p-2 border border-green-300 bg-green-50 rounded flex items-center gap-3">
+                    <img id="firma_preview" alt="Firma" class="hidden h-14 bg-white border border-gray-300 rounded">
+                    <span id="firma_estado" class="text-xs text-green-800 flex-1"></span>
+                </div>
+
                 <canvas id="signature-pad" class="signature-pad"></canvas>
                 <div class="flex justify-between items-center mt-3">
                     <span class="text-xs text-gray-500">Firma dentro del recuadro</span>
-                    <button type="button" onclick="signaturePad.clear()"
+                    <button type="button" onclick="signaturePad.clear(); actualizarEstadoFirma()"
                         class="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 font-semibold">
                         Limpiar Firma
                     </button>
                 </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <label
+                        class="text-sm text-center bg-gray-100 text-gray-700 px-2 py-2 rounded border border-gray-300 hover:bg-gray-200 font-semibold cursor-pointer">
+                        Subir imagen de firma
+                        <input type="file" accept="image/*" class="hidden" onchange="subirFirma(event)">
+                    </label>
+                    <button type="button" onclick="guardarFirma()"
+                        class="text-sm bg-blue-700 text-white px-2 py-2 rounded hover:bg-blue-800 font-semibold">
+                        Guardar firma en este equipo
+                    </button>
+                </div>
+                <button type="button" id="btn_borrar_firma" onclick="borrarFirmaGuardada()"
+                    class="hidden mt-2 text-xs underline text-red-700 font-semibold">Borrar la firma guardada</button>
+                <p class="text-[11px] text-gray-500 mt-2">
+                    Si firmar con el mouse no resulta, firme en papel, tome una foto y súbala. La firma queda
+                    guardada solo en este navegador y se usa sola la próxima vez: no la guarde en un equipo compartido.
+                </p>
             </section>
 
             <button type="button" onclick="generarPDF()"
@@ -177,6 +201,22 @@
                 </svg>
                 Generar y Descargar PDF
             </button>
+
+            <details class="mb-8 text-sm bg-white rounded shadow p-3">
+                <summary class="font-semibold cursor-pointer text-gray-700">Memoria de este equipo</summary>
+                <div class="mt-3 space-y-2">
+                    <p id="mem_resumen" class="text-xs text-gray-600"></p>
+                    <button type="button" onclick="copiarEPPNuevos()"
+                        class="w-full text-sm bg-blue-700 text-white py-2 rounded font-semibold hover:bg-blue-800">
+                        Copiar EPP nuevos (para listados.js)</button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="borrarEPPNuevos()"
+                            class="text-xs bg-gray-200 text-gray-700 py-2 rounded font-semibold hover:bg-gray-300">Borrar EPP nuevos</button>
+                        <button type="button" onclick="borrarBO()"
+                            class="text-xs bg-gray-200 text-gray-700 py-2 rounded font-semibold hover:bg-gray-300">Olvidar BO guardadas</button>
+                    </div>
+                </div>
+            </details>
         </form>
     </main>
 
@@ -298,9 +338,205 @@
             document.getElementById('total_personal').textContent = PERSONAL.length;
         })();
 
+        /* ════════════════════════════════════════════════════════════════
+           MEMORIA DE ESTE EQUIPO (localStorage)
+           - bo:        último Centro de Costo BO usado con cada trabajador
+           - eppNuevos: EPP agregados a mano, para que vuelvan a aparecer
+           - firmas:    firma de cada prevencionista (solo en su navegador)
+           Si el navegador no permite guardar, todo sigue funcionando sin memoria.
+        ════════════════════════════════════════════════════════════════ */
+        const MEM_KEY = 'sice_epp_memoria_v1';
+
+        function memLeer() {
+            try {
+                const m = JSON.parse(localStorage.getItem(MEM_KEY) || '{}');
+                return { bo: m.bo || {}, eppNuevos: m.eppNuevos || [], firmas: m.firmas || {} };
+            } catch (e) {
+                return { bo: {}, eppNuevos: [], firmas: {} };
+            }
+        }
+        function memGuardar(m) {
+            try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); return true; }
+            catch (e) { return false; }
+        }
+
+        // Con RUT se identifica por RUT; sin RUT, por nombre
+        function claveTrabajador(rut, nombre) {
+            const k = rutKey(rut);
+            return k ? 'R:' + k : 'N:' + norm(nombre).replace(/\s+/g, ' ').trim();
+        }
+        function boRecordada(rut, nombre) {
+            return memLeer().bo[claveTrabajador(rut, nombre)] || '';
+        }
+
+        // EPP oficiales + los agregados a mano en este equipo que aún no estén en el listado
+        function todosEPP() {
+            const extra = memLeer().eppNuevos
+                .filter(n => !EPP.some(e => (n.codigo && e[0] === n.codigo) ||
+                    (!n.codigo && n.desc && norm(e[1]) === norm(n.desc))))
+                .map(n => [n.codigo || '', n.desc || '', true]);
+            return EPP.concat(extra);
+        }
+        function mismoEPP(it, e) {
+            return e[0] ? it.codigo === e[0] : (!it.codigo && norm(it.desc) === norm(e[1]));
+        }
+
+        function memRecordarEPPManual(codigo, desc) {
+            if (codigo && EPP.some(e => e[0] === codigo)) return;   // ya es oficial
+            const m = memLeer();
+            const existe = m.eppNuevos.some(n => codigo ? n.codigo === codigo : (!n.codigo && norm(n.desc) === norm(desc)));
+            if (!existe) { m.eppNuevos.push({ codigo: codigo, desc: desc }); memGuardar(m); }
+            actualizarResumenMemoria();
+        }
+
+        // Al generar el PDF se fija la BO de cada trabajador como la última usada
+        function memRecordarSolicitud() {
+            const m = memLeer();
+            solicitudes.forEach(s => {
+                const bo = (document.getElementById('bo_' + s.id) || {}).value;
+                if (bo && bo.trim()) m.bo[claveTrabajador(s.rut, s.nombre)] = bo.trim();
+            });
+            memGuardar(m);
+            actualizarResumenMemoria();
+        }
+
+        function actualizarResumenMemoria() {
+            const el = document.getElementById('mem_resumen');
+            if (!el) return;
+            const m = memLeer();
+            el.textContent = Object.keys(m.bo).length + ' BO recordadas · ' +
+                m.eppNuevos.length + ' EPP nuevos · ' +
+                Object.keys(m.firmas).length + ' firma(s) guardada(s)';
+        }
+
+        function copiarTexto(txt) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(txt).then(() => true).catch(() => false);
+            }
+            const ta = document.createElement('textarea');
+            ta.value = txt; document.body.appendChild(ta); ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            ta.remove();
+            return Promise.resolve(ok);
+        }
+
+        // Deja los EPP nuevos listos para pegar al final del bloque EPP_TSV de listados.js
+        async function copiarEPPNuevos() {
+            const nuevos = memLeer().eppNuevos;
+            const conCodigo = nuevos.filter(n => n.codigo && n.desc);
+            const sinCodigo = nuevos.length - conCodigo.length;
+            if (!conCodigo.length) {
+                alert(nuevos.length
+                    ? 'Los EPP nuevos guardados no tienen código y descripción a la vez, así que no se pueden agregar al listado oficial todavía.'
+                    : 'No hay EPP nuevos guardados en este equipo.');
+                return;
+            }
+            const ok = await copiarTexto(conCodigo.map(n => n.codigo + '\t' + n.desc).join('\n'));
+            alert((ok ? conCodigo.length + ' EPP copiados.' : 'No se pudo copiar automáticamente.') +
+                '\n\nAbra listados.js en GitHub, ubique el cierre ` del bloque EPP_TSV y pegue justo antes.' +
+                (sinCodigo ? '\n\n' + sinCodigo + ' EPP sin código o sin descripción no se incluyeron.' : ''));
+        }
+
+        function borrarEPPNuevos() {
+            if (!confirm('¿Borrar los EPP nuevos guardados en este equipo?')) return;
+            const m = memLeer(); m.eppNuevos = []; memGuardar(m); actualizarResumenMemoria();
+        }
+        function borrarBO() {
+            if (!confirm('¿Olvidar todas las BO guardadas en este equipo?')) return;
+            const m = memLeer(); m.bo = {}; memGuardar(m); actualizarResumenMemoria();
+        }
+
+        /* ── Firma guardada ── */
+        let firmaSubida = null;
+
+        function firmaGuardada(rut) {
+            return memLeer().firmas[rutKey(rut)] || null;
+        }
+
+        function actualizarEstadoFirma() {
+            const prev = getPrevencionista();
+            const guardada = prev ? firmaGuardada(prev[0]) : null;
+            const dibuja = signaturePad.toData().length > 0;
+            let src = null, msg = '';
+            if (dibuja) {
+                msg = 'Se usará la firma dibujada en el recuadro.' +
+                    (guardada ? ' (Hay otra guardada; el recuadro tiene prioridad.)' : '');
+            } else if (firmaSubida) {
+                src = firmaSubida.dataURL;
+                msg = 'Se usará la imagen cargada. Pulse «Guardar firma» para recordarla en este equipo.';
+            } else if (guardada) {
+                src = guardada.dataURL;
+                msg = 'Firma guardada en este equipo: se usará automáticamente. Basta con no dibujar nada.';
+            }
+            document.getElementById('firma_box').classList.toggle('hidden', !msg);
+            const img = document.getElementById('firma_preview');
+            img.classList.toggle('hidden', !src);
+            if (src) img.src = src;
+            document.getElementById('firma_estado').textContent = msg;
+            document.getElementById('btn_borrar_firma').classList.toggle('hidden', !guardada);
+        }
+
+        async function subirFirma(ev) {
+            const file = ev.target.files[0];
+            ev.target.value = '';
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const obj = await loadImageObj(url, { png: true, maxSide: 800 });
+            URL.revokeObjectURL(url);
+            if (!obj) { alert('No se pudo procesar esa imagen. Intente con otra.'); return; }
+            firmaSubida = obj;
+            signaturePad.clear();
+            actualizarEstadoFirma();
+        }
+
+        async function guardarFirma() {
+            const prev = getPrevencionista();
+            if (!prev) { alert('Seleccione primero el prevencionista que retira.'); return; }
+            let im = null;
+            if (signaturePad.toData().length > 0) {
+                im = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+            } else {
+                im = firmaSubida;
+            }
+            if (!im) { alert('Dibuje o suba una firma antes de guardarla.'); return; }
+            const m = memLeer();
+            m.firmas[rutKey(prev[0])] = im;
+            if (!memGuardar(m)) {
+                alert('Este navegador no permitió guardar la firma (modo privado o sin espacio).');
+                return;
+            }
+            firmaSubida = null;
+            signaturePad.clear();
+            actualizarEstadoFirma();
+            actualizarResumenMemoria();
+            alert('Firma guardada en este equipo. La próxima vez se usará automáticamente.');
+        }
+
+        function borrarFirmaGuardada() {
+            const prev = getPrevencionista();
+            if (!prev || !confirm('¿Borrar la firma guardada de este prevencionista en este equipo?')) return;
+            const m = memLeer();
+            delete m.firmas[rutKey(prev[0])];
+            memGuardar(m);
+            actualizarEstadoFirma();
+            actualizarResumenMemoria();
+        }
+
+        // Prioridad: lo dibujado, luego la imagen subida, luego la guardada
+        async function resolverFirma() {
+            if (signaturePad.toData().length > 0) {
+                return await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+            }
+            if (firmaSubida) return firmaSubida;
+            const prev = getPrevencionista();
+            return prev ? firmaGuardada(prev[0]) : null;
+        }
+
         function onPrevencionistaChange() {
             const rut = document.getElementById('prevencionista').value;
             document.getElementById('rut_prevencionista').value = rut ? formatRut(rut) : '';
+            actualizarEstadoFirma();
         }
 
         function getPrevencionista() {
@@ -404,7 +640,8 @@
                 alert('Ese RUT ya está agregado en esta solicitud.');
                 return;
             }
-            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombre, manual: true, items: [] });
+            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombre, manual: true, items: [],
+                boInicial: boRecordada(rut, nombre) });
             cerrarManualTrab();
             cerrarBuscadorTrab();
             renderSolicitudes();
@@ -415,7 +652,8 @@
         function agregarTrabajador(rut) {
             const p = PERSONAL.find(x => x[0] === rut);
             if (!p || solicitudes.some(s => s.rut === rut)) return;
-            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombrePersona(p), items: [] });
+            solicitudes.push({ id: 't' + (++seq), rut: rut, nombre: nombrePersona(p), items: [],
+                boInicial: boRecordada(rut, nombrePersona(p)) });
             cerrarManualTrab();
             cerrarBuscadorTrab();
             renderSolicitudes();
@@ -431,11 +669,14 @@
         }
 
         function agregarEPP(id, codigo) {
+            const epp = todosEPP().find(e => e[0] === codigo);
+            if (epp) agregarEPPobj(id, epp);
+        }
+
+        function agregarEPPobj(id, e) {
             const s = solicitudes.find(x => x.id === id);
-            if (!s || s.items.some(it => it.codigo === codigo)) return;
-            const epp = EPP.find(e => e[0] === codigo);
-            if (!epp) return;
-            s.items.push({ codigo: codigo, desc: epp[1], cant: 1 });
+            if (!s || s.items.some(it => mismoEPP(it, e))) return;
+            s.items.push({ codigo: e[0], desc: e[1], cant: 1, manual: !!e[2] });
             renderSolicitudes();
         }
 
@@ -474,6 +715,7 @@
                 return;
             }
             s.items.push({ codigo: codigo, desc: desc, cant: cant, manual: true });
+            memRecordarEPPManual(codigo, desc);
             cerrarManualEPP(id);
             renderSolicitudes();
         }
@@ -501,7 +743,7 @@
             if (!inp || !cont || !s) return;
             const q = norm(inp.value.trim());
             const terminos = q ? q.split(/\s+/) : [];
-            const todos = EPP.filter(e => {
+            const todos = todosEPP().filter(e => {
                 const texto = norm(e[1] + ' ' + e[0]);
                 return terminos.every(t => texto.indexOf(t) !== -1);
             });
@@ -512,17 +754,18 @@
                 cont.innerHTML = '<p class="p-3 text-sm text-gray-400 text-center">Sin coincidencias.</p>';
             } else {
                 hits.forEach(e => {
-                    const ya = s.items.some(it => it.codigo === e[0]);
+                    const ya = s.items.some(it => mismoEPP(it, e));
                     const b = document.createElement('button');
                     b.type = 'button';
                     b.disabled = ya;
                     b.className = 'w-full text-left p-2 transition ' +
                         (ya ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-blue-50');
                     b.innerHTML =
-                        '<span class="block text-xs font-semibold leading-tight">' + esc(e[1]) +
+                        '<span class="block text-xs font-semibold leading-tight">' + esc(e[1] || 'Sin descripción') +
+                        (e[2] ? ' <span class="text-[10px] bg-amber-500 text-white px-1 rounded">NUEVO</span>' : '') +
                         (ya ? ' <span class="text-[10px] bg-gray-300 text-gray-700 px-1 rounded">ya agregado</span>' : '') +
-                        '</span><span class="block text-[10px] text-gray-500 leading-tight">' + esc(e[0]) + '</span>';
-                    if (!ya) b.onclick = () => agregarEPP(id, e[0]);
+                        '</span><span class="block text-[10px] text-gray-500 leading-tight">' + esc(e[0] || 'Sin código') + '</span>';
+                    if (!ya) b.onclick = () => agregarEPPobj(id, e);
                     cont.appendChild(b);
                 });
                 if (todos.length > hits.length) {
@@ -540,6 +783,8 @@
             // Conserva lo ya escrito en los campos de Centro de Costo
             const prevEstado = {};
             solicitudes.forEach(s => {
+                // Una tarjeta recién creada aún no está en pantalla: no tiene estado que conservar
+                if (!document.getElementById('bo_' + s.id)) return;
                 const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
                 const box = document.getElementById('mepp_' + s.id);
                 prevEstado[s.id] = {
@@ -562,7 +807,7 @@
                 div.id = 'card_' + s.id;
                 div.className = 'border border-gray-300 rounded p-3 bg-gray-50';
 
-                const est = prevEstado[s.id] || { bo: '', abierto: false, cod: '', desc: '', cant: '1' };
+                const est = prevEstado[s.id] || { bo: s.boInicial || '', abierto: false, cod: '', desc: '', cant: '1' };
 
                 const filas = s.items.length
                     ? s.items.map((it, pos) =>
@@ -595,7 +840,9 @@
                     'class="shrink-0 w-9 h-9 rounded bg-red-100 text-red-700 font-bold hover:bg-red-200">✕</button>' +
                     '</div>' +
 
-                    '<label class="block text-xs font-semibold mb-1">Centro de Costo BO</label>' +
+                    '<label class="block text-xs font-semibold mb-1">Centro de Costo BO' +
+                    (s.boInicial ? ' <span class="font-normal text-gray-500">(última usada: ' + esc(s.boInicial) + ')</span>' : '') +
+                    '</label>' +
                     '<input type="text" id="bo_' + s.id + '" placeholder="Ej: AL-10192" ' +
                     'value="' + esc(est.bo) + '" ' +
                     'class="w-full border border-gray-300 p-2 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 mb-3">' +
@@ -823,10 +1070,7 @@
             try {
                 await logosReady;
 
-                let firma = null;
-                if (signaturePad.toData().length > 0) {
-                    firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
-                }
+                const firma = await resolverFirma();
 
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
@@ -967,6 +1211,7 @@
 
                 const [y, m, d] = fecha.split('-');
                 doc.save(`Solicitud_EPP_${y}${m}${d}.pdf`);
+                memRecordarSolicitud();
 
                 document.getElementById('loader').style.display = 'none';
                 alert('PDF generado exitosamente. Revisa tu carpeta de descargas.');
@@ -990,6 +1235,8 @@
             });
         });
 
+        signaturePad.addEventListener('endStroke', actualizarEstadoFirma);
+        actualizarResumenMemoria();
         renderSolicitudes();
         mostrarBuscadorTrab(false);   // aún no hay trabajadores: parte abierto
     </script>
