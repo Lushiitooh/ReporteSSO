@@ -114,6 +114,7 @@
                             <option value="">Seleccione empresa mandante...</option>
                             <option value="EFE">EFE TRENES DE CHILE</option>
                             <option value="METRO">METRO DE SANTIAGO S.A.</option>
+                            <option value="ENTEL">ENTEL</option>
                         </select>
                     </div>
 
@@ -122,6 +123,12 @@
                         <input type="text" readonly
                             value='"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE'
                             class="w-full border border-gray-300 p-2 rounded bg-gray-100 text-gray-500 text-sm">
+                    </div>
+
+                    <div id="bloque-contrato-entel" class="hidden">
+                        <label class="block text-sm font-medium mb-1">Contrato</label>
+                        <textarea readonly rows="3"
+                            class="w-full border border-gray-300 p-2 rounded bg-gray-100 text-gray-500 text-sm">CONTRATO MARCO DE PRESTACIÓN DE SERVICIOS CON CONTRATISTA ENTRE EMPRESA NACIONAL DE TELECOMUNICACIONES S.A Y SICE AGENCIA CHILE S.A</textarea>
                     </div>
 
                     <div id="bloque-contrato-metro" class="hidden">
@@ -185,7 +192,43 @@
 
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">2. Personal a Cargo</h2>
-                <div class="space-y-4">
+
+                <div id="bloque-personal-entel" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">¿Quién realiza el reporte?</label>
+                        <select id="entel_rol" onchange="onRolEntelChange()"
+                            class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                            <option value="">Seleccione...</option>
+                            <option value="TRABAJADOR">Trabajador</option>
+                            <option value="SUPERVISOR">Supervisor</option>
+                            <option value="PREVENCIONISTA">Prevencionista de Riesgos</option>
+                        </select>
+                    </div>
+                    <div id="entel_datos" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nombre completo de quien realiza el reporte</label>
+                            <input type="text" id="entel_nombre" placeholder="Nombre y apellidos"
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Cargo</label>
+                            <input type="text" id="entel_cargo" placeholder="Ej: Técnico"
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
+                        <div id="entel_wrap_sup">
+                            <label id="entel_lbl_sup" class="block text-sm font-medium mb-1">Supervisor</label>
+                            <input type="text" id="entel_sup" placeholder="Nombre y apellidos"
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
+                        <div id="entel_wrap_prev">
+                            <label id="entel_lbl_prev" class="block text-sm font-medium mb-1">Prevencionista de Riesgos</label>
+                            <input type="text" id="entel_prev" placeholder="Nombre y apellidos"
+                                class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bloque-personal-std" class="space-y-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Supervisor</label>
                         <select id="supervisor" required
@@ -327,7 +370,7 @@
             </section>
 
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
-                <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">5. Firma del Prevencionista</h2>
+                <h2 id="titulo_firma" class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">5. Firma del Prevencionista</h2>
                 <canvas id="signature-pad" class="signature-pad"></canvas>
                 <div class="flex justify-between items-center mt-3">
                     <span class="text-xs text-gray-500">Firma dentro del recuadro</span>
@@ -491,6 +534,19 @@
         ];
 
         const CONTRATO_EFE = '"Diseño, implementación y garantía, comunicaciones Chillán–Estación Central". EFE/SICE';
+        // ENTEL no tiene nómina ni lugares propios: usa lugar libre y las listas generales.
+        const CONTRATO_ENTEL = 'CONTRATO MARCO DE PRESTACIÓN DE SERVICIOS CON CONTRATISTA ENTRE EMPRESA NACIONAL DE TELECOMUNICACIONES S.A Y SICE AGENCIA CHILE S.A';
+
+        /* En ENTEL el reporte lo puede hacer un trabajador, un supervisor o un
+           prevencionista, y lo que se pregunta depende de quién sea. */
+        const ROLES_ENTEL = {
+            TRABAJADOR: { cargo: 'Trabajador', pideSup: true, pidePrev: true,
+                lblSup: 'Nombre de su supervisor', lblPrev: 'Nombre de su prevencionista' },
+            SUPERVISOR: { cargo: 'Supervisor', pideSup: false, pidePrev: true,
+                lblSup: '', lblPrev: 'Nombre de su prevencionista' },
+            PREVENCIONISTA: { cargo: 'Prevencionista de Riesgos', pideSup: true, pidePrev: false,
+                lblSup: 'Nombre del supervisor', lblPrev: '' }
+        };
         // Debe coincidir EXACTAMENTE con el texto del <option> en #contrato_metro
         const CONTRATO_L7 = 'Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7 de Metro S.A.';
         const CONTRATO_L63 = 'Mantenimiento de Comunicaciones Línea 6 y Línea 3.';
@@ -601,12 +657,13 @@
         }
 
         /* ── Pre-carga de logos (una sola vez al abrir la página) ── */
-        const logos = { sice: null, efe: null, metro: null, ab: null, ihb: null };
+        const logos = { sice: null, efe: null, metro: null, ab: null, ihb: null, entel: null };
         const logosReady = Promise.all([
             loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
             loadImageObj('logo-efe.png', { png: true, maxSide: 600 }).then(o => logos.efe = o),
             loadImageObj('logo-metro.png', { png: true, maxSide: 600 }).then(o => logos.metro = o),
             loadImageObj('logo-ab.png', { png: true, maxSide: 600 }).then(o => logos.ab = o),
+            loadImageObj('logo-entel.png', { png: true, maxSide: 600 }).then(o => logos.entel = o),
             loadImageObj('logo-ihb.png', { png: true, maxSide: 600 }).then(o => logos.ihb = o),
         ]);
 
@@ -692,8 +749,49 @@
             const val = document.getElementById('mandante').value;
             document.getElementById('bloque-contrato-efe').classList.toggle('hidden', val !== 'EFE');
             document.getElementById('bloque-contrato-metro').classList.toggle('hidden', val !== 'METRO');
+            document.getElementById('bloque-contrato-entel').classList.toggle('hidden', val !== 'ENTEL');
             if (val !== 'METRO') document.getElementById('contrato_metro').value = '';
             onContratoChange();
+            aplicarModoEntel();
+        }
+
+        function esEntel() {
+            return document.getElementById('mandante').value === 'ENTEL';
+        }
+
+        /* Cambia lo que ve el usuario según el mandante: en ENTEL se pregunta
+           quién hace el reporte en vez de elegir supervisor y prevencionista. */
+        function aplicarModoEntel() {
+            const e = esEntel();
+            document.getElementById('bloque-personal-entel').classList.toggle('hidden', !e);
+            document.getElementById('bloque-personal-std').classList.toggle('hidden', e);
+            document.getElementById('titulo_firma').textContent =
+                e ? '5. Firma de quien realiza el reporte' : '5. Firma del Prevencionista';
+            document.getElementById('lugar_metro').placeholder =
+                e ? 'Ej: Sitio, nodo o dirección' : 'Ej: Metro San Joaquín L5';
+        }
+
+        function onRolEntelChange() {
+            const rol = document.getElementById('entel_rol').value;
+            const cfg = ROLES_ENTEL[rol];
+            document.getElementById('entel_datos').classList.toggle('hidden', !cfg);
+            if (!cfg) return;
+            // El cargo se sugiere según el rol, pero queda editable
+            const cargo = document.getElementById('entel_cargo');
+            const defaults = Object.keys(ROLES_ENTEL).map(k => ROLES_ENTEL[k].cargo);
+            if (!cargo.value.trim() || defaults.indexOf(cargo.value.trim()) !== -1) cargo.value = cfg.cargo;
+            document.getElementById('entel_wrap_sup').classList.toggle('hidden', !cfg.pideSup);
+            document.getElementById('entel_wrap_prev').classList.toggle('hidden', !cfg.pidePrev);
+            document.getElementById('entel_lbl_sup').textContent = cfg.lblSup;
+            document.getElementById('entel_lbl_prev').textContent = cfg.lblPrev;
+        }
+
+        function getReporteEntel() {
+            const v = id => document.getElementById(id).value.trim();
+            const rol = v('entel_rol');
+            const cfg = ROLES_ENTEL[rol] || {};
+            return { rol: rol, nombre: v('entel_nombre'), cargo: v('entel_cargo') || cfg.cargo || '',
+                     sup: cfg.pideSup ? v('entel_sup') : '', prev: cfg.pidePrev ? v('entel_prev') : '' };
         }
 
         /* Se dispara al cambiar el contrato (o el mandante). Es el ÚNICO punto
@@ -762,7 +860,7 @@
             const usaLista = !!(cfg && cfg.lugares);
             if (usaLista) poblarLugares(selLugar, cfg.lugares);
             selLugar.classList.toggle('hidden', !usaLista);
-            inpMetro.classList.toggle('hidden', !(val === 'METRO' && !usaLista));
+            inpMetro.classList.toggle('hidden', !((val === 'METRO' || val === 'ENTEL') && !usaLista));
             ph.classList.toggle('hidden', val !== '');
             if (!usaLista) { selLugar.value = ''; inpOtro.value = ''; }
             onLugarEfeChange();
@@ -953,6 +1051,7 @@
             const v = document.getElementById('mandante').value;
             if (v === 'EFE') return CONTRATO_EFE;
             if (v === 'METRO') return document.getElementById('contrato_metro').value;
+            if (v === 'ENTEL') return CONTRATO_ENTEL;
             return '';
         }
         function getConfigContrato() {
@@ -966,7 +1065,8 @@
                 if (sel === 'OTROS') return document.getElementById('lugar_efe_otro').value.trim();
                 return sel;
             }
-            if (document.getElementById('mandante').value === 'METRO') {
+            const m = document.getElementById('mandante').value;
+            if (m === 'METRO' || m === 'ENTEL') {
                 return document.getElementById('lugar_metro').value.trim();
             }
             return '';
@@ -978,6 +1078,7 @@
             const v = document.getElementById('mandante').value;
             if (v === 'EFE') return 'EFE TRENES DE CHILE';
             if (v === 'METRO') return 'METRO DE SANTIAGO S.A.';
+            if (v === 'ENTEL') return 'ENTEL';
             return '';
         }
 
@@ -1102,7 +1203,7 @@
             const izq = contratista ? logos[contratista.logo] : logos.sice;
             const der = contratista
                 ? logos.sice
-                : (mandante === 'METRO' ? logos.metro : logos.efe);
+                : (mandante === 'METRO' ? logos.metro : (mandante === 'ENTEL' ? logos.entel : logos.efe));
             const box = (contratista && contratista.logoBox) || {};
             placeContain(doc, izq, MARGIN, box.y || 12, box.w || 42, box.h || 14, 'l', 'm');
             placeContain(doc, der, PAGE_W - MARGIN - 42, 12, 42, 14, 'r', 'm');
@@ -1138,7 +1239,7 @@
         }
 
         /* Bloque de firma. Ocupa ALTO_FIRMA mm hacia abajo desde yTop. */
-        function dibujarFirma(doc, yTop, firma, nombrePreve, empresa) {
+        function dibujarFirma(doc, yTop, firma, nombrePreve, empresa, leyenda) {
             const lineaY = yTop + 16 + 26;          // base de la línea de firma
             placeContain(doc, firma, (PAGE_W - 80) / 2, lineaY - 26, 80, 26, 'c', 'b');
             doc.setDrawColor(0, 0, 0);
@@ -1151,7 +1252,7 @@
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8.5);
             doc.setTextColor(...C_GRIS_TXT);
-            doc.text('PREVENCIONISTA DE RIESGOS ' + (empresa || 'SICE'), PAGE_W / 2, lineaY + 11, { align: 'center' });
+            doc.text(leyenda || ('PREVENCIONISTA DE RIESGOS ' + (empresa || 'SICE')), PAGE_W / 2, lineaY + 11, { align: 'center' });
         }
 
         async function generarPDF() {
@@ -1163,6 +1264,22 @@
             if (!mandante || !fechaB || !lugar || !hIng) {
                 alert('Por favor, complete la Empresa Mandante, Fecha, Hora de Ingreso y Lugar antes de generar.');
                 return;
+            }
+            if (esEntel()) {
+                const r = getReporteEntel();
+                const cfg = ROLES_ENTEL[r.rol];
+                const faltan = [];
+                if (!cfg) faltan.push('quién realiza el reporte');
+                else {
+                    if (!r.nombre) faltan.push('el nombre de quien realiza el reporte');
+                    if (!r.cargo) faltan.push('el cargo');
+                    if (cfg.pideSup && !r.sup) faltan.push(cfg.lblSup.toLowerCase());
+                    if (cfg.pidePrev && !r.prev) faltan.push(cfg.lblPrev.toLowerCase());
+                }
+                if (faltan.length) {
+                    alert('Falta indicar: ' + faltan.join(', ') + '.');
+                    return;
+                }
             }
 
             document.getElementById('loader').style.display = 'flex';
@@ -1188,7 +1305,10 @@
                 dibujarEncabezado(doc, mandante, contratista);
 
                 /* ── Tabla: Información general ── */
-                const nombrePreve = document.getElementById('prevencionista').value;
+                // En ENTEL firma quien realiza el reporte, con su propio cargo
+                const repEntel = esEntel() ? getReporteEntel() : null;
+                const nombrePreve = repEntel ? repEntel.nombre : document.getElementById('prevencionista').value;
+                const leyendaFirma = repEntel ? repEntel.cargo.toUpperCase() + ' SICE' : null;
                 const infoRows = [
                     ['Empresa', 'SICE AGENCIA CHILE S.A.'],
                 ];
@@ -1236,7 +1356,12 @@
                         0: { cellWidth: 55, fillColor: C_GRIS_FILA, fontStyle: 'bold' },
                         1: { cellWidth: CONTENT_W - 55 }
                     },
-                    body: [
+                    body: repEntel ? [
+                        ['Reporte realizado por', repEntel.nombre],
+                        ['Cargo', repEntel.cargo],
+                        [`Supervisor ${emp.abrev}`, (repEntel.rol === 'SUPERVISOR' ? repEntel.nombre : repEntel.sup) || 'No especificado'],
+                        ['Prevencionista de Riesgos', (repEntel.rol === 'PREVENCIONISTA' ? repEntel.nombre : repEntel.prev) || 'No especificado'],
+                    ] : [
                         [`Supervisor ${emp.abrev}`, document.getElementById('supervisor').value || 'No especificado'],
                         ['Prevencionista de Riesgos', nombrePreve || 'No especificado'],
                     ]
@@ -1369,7 +1494,7 @@
 
                     placeContain(doc, imagenesCargadas[p.id], MARGIN + 2, ay + 2, CONTENT_W - 4, ah - 4, 'c', 'm');
 
-                    if (esUltima) dibujarFirma(doc, ay + ah, firma, nombrePreve, emp.nombre);
+                    if (esUltima) dibujarFirma(doc, ay + ah, firma, nombrePreve, emp.nombre, leyendaFirma);
                 });
 
                 /* ── Firma sin evidencia fotográfica ──
@@ -1378,7 +1503,7 @@
                 if (PHOTOS.length === 0) {
                     let yF = doc.lastAutoTable.finalY;
                     if (yF + ALTO_FIRMA > CONTENT_BOTTOM) { doc.addPage(); yF = MARGIN; }
-                    dibujarFirma(doc, yF, firma, nombrePreve, emp.nombre);
+                    dibujarFirma(doc, yF, firma, nombrePreve, emp.nombre, leyendaFirma);
                 }
 
                 /* ── Guardar ── */
