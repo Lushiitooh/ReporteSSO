@@ -250,7 +250,7 @@
                 <h2 class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">3. Dotación y Recursos</h2>
                 <div class="space-y-4">
                     <div class="bg-gray-50 p-3 rounded border border-gray-200">
-                        <label class="block text-sm font-bold mb-2">Trabajadores ITO (CyD)</label>
+                        <label class="block text-sm font-bold mb-2">Trabajadores ITO</label>
                         <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="text-xs text-gray-500">Cantidad</label>
@@ -1377,7 +1377,7 @@
                 const tablaDotStart = tituloSeccion(doc, 'DOTACIÓN Y RECURSOS', yDot);
 
                 const dotRows = [
-                    ['N° de trabajadores ITO (CyD)', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value]
+                    ['N° de trabajadores ITO', document.getElementById('ito_cant').value, document.getElementById('ito_desc').value]
                 ];
                 if (!nominaSel) {
                     dotRows.push([`N° de trabajadores ${emp.abrev}`, document.getElementById('sice_cant').value, document.getElementById('sice_desc').value]);
