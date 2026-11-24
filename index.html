@@ -207,7 +207,7 @@
                     <div id="entel_datos" class="hidden space-y-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre completo de quien realiza el reporte</label>
-                            <input type="text" id="entel_nombre" placeholder="Nombre y apellidos"
+                            <input type="text" id="entel_nombre" oninput="actualizarEstadoFirma()" placeholder="Nombre y apellidos"
                                 class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                         </div>
                         <div>
@@ -238,7 +238,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Prevencionista de Riesgos</label>
-                        <select id="prevencionista" required
+                        <select id="prevencionista" required onchange="actualizarEstadoFirma()"
                             class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50">
                             <option value="">Seleccione prevencionista...</option>
                         </select>
@@ -371,14 +371,38 @@
 
             <section class="bg-white p-4 rounded-lg shadow border-t-4 border-blue-800">
                 <h2 id="titulo_firma" class="text-lg font-bold border-b pb-2 mb-4 text-gray-700">5. Firma del Prevencionista</h2>
+
+                <div id="firma_box" class="hidden mb-3 p-2 border border-green-300 bg-green-50 rounded flex items-center gap-3">
+                    <img id="firma_preview" alt="Firma" class="hidden h-14 bg-white border border-gray-300 rounded">
+                    <span id="firma_estado" class="text-xs text-green-800 flex-1"></span>
+                </div>
+
                 <canvas id="signature-pad" class="signature-pad"></canvas>
                 <div class="flex justify-between items-center mt-3">
                     <span class="text-xs text-gray-500">Firma dentro del recuadro</span>
-                    <button type="button" onclick="signaturePad.clear()"
+                    <button type="button" onclick="signaturePad.clear(); actualizarEstadoFirma()"
                         class="text-sm bg-gray-200 text-gray-700 px-4 py-2 rounded shadow hover:bg-gray-300 font-semibold">
                         Limpiar Firma
                     </button>
                 </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <label
+                        class="text-sm text-center bg-gray-100 text-gray-700 px-2 py-2 rounded border border-gray-300 hover:bg-gray-200 font-semibold cursor-pointer">
+                        Subir imagen de firma
+                        <input type="file" accept="image/*" class="hidden" onchange="subirFirma(event)">
+                    </label>
+                    <button type="button" onclick="guardarFirma()"
+                        class="text-sm bg-blue-700 text-white px-2 py-2 rounded hover:bg-blue-800 font-semibold">
+                        Guardar firma en este equipo
+                    </button>
+                </div>
+                <button type="button" id="btn_borrar_firma" onclick="borrarFirmaGuardada()"
+                    class="hidden mt-2 text-xs underline text-red-700 font-semibold">Borrar la firma guardada</button>
+                <p class="text-[11px] text-gray-500 mt-2">
+                    Si firmar con el mouse no resulta, firme en papel, tome una foto y súbala. La firma queda
+                    guardada solo en este navegador y se usa sola la próxima vez: no la guarde en un equipo compartido.
+                </p>
             </section>
 
             <button type="button" onclick="generarPDF()"
@@ -551,6 +575,34 @@
         const CONTRATO_L7 = 'Suministro y Mantenimiento del Sistema de Comunicaciones para el Proyecto de Línea 7 de Metro S.A.';
         const CONTRATO_L63 = 'Mantenimiento de Comunicaciones Línea 6 y Línea 3.';
 
+        // Nómina de MARROD TECHNOLOGY S.A., contratista del contrato Línea 7
+        const NOMINA_MARROD = [
+            { rut: '15.396.955-8', nombres: 'RODRIGO ARTURO', apellidos: 'MORALES GUTIERREZ', cargo: 'CAPATAZ' },
+            { rut: '27.638.672-7', nombres: 'JHOAN JOSUE', apellidos: 'LEON ASTUDILLO', cargo: 'MAESTRO' },
+            { rut: '27.186.443-4', nombres: 'JOSE ARMANDO', apellidos: 'OPORTO CASTILLO', cargo: 'MAESTRO' },
+            { rut: '29.107.576-2', nombres: 'DEIBES', apellidos: 'REYES BRACAMONTE', cargo: 'AYUDANTE' },
+            { rut: '17.679.416-K', nombres: 'FRANCO ANDREAS', apellidos: 'FIERRO GONZALEZ', cargo: 'PREVENCIÓN DE RIESGOS' },
+            { rut: '18.833.753-8', nombres: 'MICHAEL ANTONIO', apellidos: 'CERDA NUÑEZ', cargo: 'AYUDANTE' },
+            { rut: '12.796.653-2', nombres: 'RODRIGO ALBERTO', apellidos: 'DURAN CARCAMO', cargo: 'PREVENCIÓN DE RIESGOS' },
+            { rut: '26.336.642-5', nombres: 'LUISCHNY GERMAN EMILIO', apellidos: 'SALERNO SILVA', cargo: 'MAESTRO' },
+            { rut: '15.544.000-7', nombres: 'CRISTIAN ALBERTO', apellidos: 'ARAVENA JARA', cargo: 'MAESTRO' },
+        ];
+
+        const CONTRATISTA_MARROD = {
+            id: 'marrod',
+            nombre: 'MARROD',
+            razonSocial: 'MARROD TECHNOLOGY S.A.',
+            abrev: 'MARROD',
+            logo: 'marrod',             // apaisado como el de SICE: usa la caja por defecto
+            lugarFijo: 'Talleres Renca, Línea 7',
+            // Quién hace de supervisor y de prevencionista en el reporte. Las
+            // personas salen de las nóminas y quedan fuera del listado de presentes.
+            supervisores: [NOMINA_L7.find(p => p.rut === '11.876.272-K')],     // César González, de SICE
+            prevencionistas: [NOMINA_MARROD.find(p => p.rut === '12.796.653-2')], // Rodrigo Durán
+            supervisorDeSice: true,     // el supervisor no es de la contratista: se rotula "SICE"
+            nomina: NOMINA_MARROD
+        };
+
         // Clave del contrato → configuración. Un contrato sin "lugares" usa el
         // campo de lugar en texto libre; uno sin "nomina" usa cantidad/desglose.
         const CONTRATOS = {};
@@ -558,7 +610,7 @@
             lugares: LUGARES_EFE, nomina: NOMINA_EFE,
             contratistas: [CONTRATISTA_AB, CONTRATISTA_IHB]
         };
-        CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7 };
+        CONTRATOS[CONTRATO_L7] = { nomina: NOMINA_L7, contratistas: [CONTRATISTA_MARROD] };
         CONTRATOS[CONTRATO_L63] = { nomina: NOMINA_L63 };
 
         // Listas generales (contratos sin nómina propia)
@@ -657,12 +709,13 @@
         }
 
         /* ── Pre-carga de logos (una sola vez al abrir la página) ── */
-        const logos = { sice: null, efe: null, metro: null, ab: null, ihb: null, entel: null };
+        const logos = { sice: null, efe: null, metro: null, ab: null, ihb: null, entel: null, marrod: null };
         const logosReady = Promise.all([
             loadImageObj('logo-sice.png', { png: true, maxSide: 600 }).then(o => logos.sice = o),
             loadImageObj('logo-efe.png', { png: true, maxSide: 600 }).then(o => logos.efe = o),
             loadImageObj('logo-metro.png', { png: true, maxSide: 600 }).then(o => logos.metro = o),
             loadImageObj('logo-ab.png', { png: true, maxSide: 600 }).then(o => logos.ab = o),
+            loadImageObj('logo-marrod.png', { png: true, maxSide: 600 }).then(o => logos.marrod = o),
             loadImageObj('logo-entel.png', { png: true, maxSide: 600 }).then(o => logos.entel = o),
             loadImageObj('logo-ihb.png', { png: true, maxSide: 600 }).then(o => logos.ihb = o),
         ]);
@@ -741,6 +794,115 @@
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('orientationchange', () => setTimeout(() => resizeCanvas(true), 150));
         setTimeout(() => resizeCanvas(true), 100);
+
+        /* ── Firma guardada en este equipo (localStorage) ──
+           Se guarda por nombre del firmante. Si el navegador no permite
+           guardar, todo sigue funcionando: solo hay que firmar cada vez. */
+        const FIRMAS_KEY = 'sice_reporte_firmas_v1';
+        let firmaSubida = null;
+
+        function firmasLeer() {
+            try { return JSON.parse(localStorage.getItem(FIRMAS_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function firmasGuardar(m) {
+            try { localStorage.setItem(FIRMAS_KEY, JSON.stringify(m)); return true; }
+            catch (e) { return false; }
+        }
+        function claveFirmante(nombre) {
+            return String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase().replace(/\s+/g, ' ').trim();
+        }
+        // Quien firma: el prevencionista elegido o, en ENTEL, quien realiza el reporte
+        function getFirmanteNombre() {
+            return esEntel()
+                ? document.getElementById('entel_nombre').value.trim()
+                : document.getElementById('prevencionista').value;
+        }
+        function firmaGuardadaDe(nombre) {
+            const k = claveFirmante(nombre);
+            return k ? (firmasLeer()[k] || null) : null;
+        }
+
+        function actualizarEstadoFirma() {
+            const guardada = firmaGuardadaDe(getFirmanteNombre());
+            const dibuja = signaturePad.toData().length > 0;
+            let src = null, msg = '';
+            if (dibuja) {
+                msg = 'Se usará la firma dibujada en el recuadro.' +
+                    (guardada ? ' (Hay otra guardada; el recuadro tiene prioridad.)' : '');
+            } else if (firmaSubida) {
+                src = firmaSubida.dataURL;
+                msg = 'Se usará la imagen cargada. Pulse «Guardar firma» para recordarla en este equipo.';
+            } else if (guardada) {
+                src = guardada.dataURL;
+                msg = 'Firma guardada en este equipo: se usará automáticamente. Basta con no dibujar nada.';
+            }
+            document.getElementById('firma_box').classList.toggle('hidden', !msg);
+            const img = document.getElementById('firma_preview');
+            img.classList.toggle('hidden', !src);
+            if (src) img.src = src;
+            document.getElementById('firma_estado').textContent = msg;
+            document.getElementById('btn_borrar_firma').classList.toggle('hidden', !guardada);
+        }
+
+        async function subirFirma(ev) {
+            const file = ev.target.files[0];
+            ev.target.value = '';
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            const obj = await loadImageObj(url, { png: true, maxSide: 800 });
+            URL.revokeObjectURL(url);
+            if (!obj) { alert('No se pudo procesar esa imagen. Intente con otra.'); return; }
+            firmaSubida = obj;
+            signaturePad.clear();
+            actualizarEstadoFirma();
+        }
+
+        async function guardarFirma() {
+            const nombre = getFirmanteNombre();
+            if (!nombre) {
+                alert(esEntel() ? 'Escriba primero el nombre de quien realiza el reporte.'
+                                : 'Seleccione primero el prevencionista.');
+                return;
+            }
+            let im = null;
+            if (signaturePad.toData().length > 0) {
+                im = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+            } else {
+                im = firmaSubida;
+            }
+            if (!im) { alert('Dibuje o suba una firma antes de guardarla.'); return; }
+            const m = firmasLeer();
+            m[claveFirmante(nombre)] = im;
+            if (!firmasGuardar(m)) {
+                alert('Este navegador no permitió guardar la firma (modo privado o sin espacio).');
+                return;
+            }
+            firmaSubida = null;
+            signaturePad.clear();
+            actualizarEstadoFirma();
+            alert('Firma guardada en este equipo. La próxima vez se usará automáticamente.');
+        }
+
+        function borrarFirmaGuardada() {
+            const nombre = getFirmanteNombre();
+            if (!nombre || !confirm('¿Borrar la firma guardada de ' + nombre + ' en este equipo?')) return;
+            const m = firmasLeer();
+            delete m[claveFirmante(nombre)];
+            firmasGuardar(m);
+            actualizarEstadoFirma();
+        }
+
+        // Prioridad: lo dibujado, luego la imagen subida, luego la guardada
+        async function resolverFirma() {
+            if (signaturePad.toData().length > 0) {
+                return await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
+            }
+            if (firmaSubida) return firmaSubida;
+            return firmaGuardadaDe(getFirmanteNombre());
+        }
+        signaturePad.addEventListener('endStroke', actualizarEstadoFirma);
 
         /* ════════════════════════════════════════════════════════════════
            LÓGICA DEL FORMULARIO
@@ -865,14 +1027,29 @@
             if (!usaLista) { selLugar.value = ''; inpOtro.value = ''; }
             onLugarEfeChange();
 
+            // Algunas contratistas trabajan siempre en el mismo lugar: se fija y se bloquea
+            const fijo = (cAct0 => cAct0 && cAct0.lugarFijo ? cAct0.lugarFijo : '')(getContratista());
+            if (fijo) {
+                inpMetro.value = fijo;
+                inpMetro.readOnly = true;
+                inpMetro.classList.add('bg-gray-100', 'text-gray-500');
+                inpMetro.dataset.fijo = '1';
+            } else if (inpMetro.dataset.fijo === '1') {
+                inpMetro.value = '';
+                inpMetro.readOnly = false;
+                inpMetro.classList.remove('bg-gray-100', 'text-gray-500');
+                delete inpMetro.dataset.fijo;
+            }
+
             // ── Personal a cargo ──
             const nomina = getNominaVigente();
-            const sups = nomina
-                ? nomina.filter(p => esSupervisor(p.cargo)).map(nombreCompleto)
-                : SUPERVISORES_GENERAL;
-            const prevs = nomina
-                ? nomina.filter(p => esPrevencionista(p.cargo)).map(nombreCompleto)
-                : PREVENCIONISTAS_GENERAL;
+            const cAct = getContratista();
+            const sups = (cAct && cAct.supervisores)
+                ? cAct.supervisores.map(nombreCompleto)
+                : (nomina ? nomina.filter(p => esSupervisor(p.cargo)).map(nombreCompleto) : SUPERVISORES_GENERAL);
+            const prevs = (cAct && cAct.prevencionistas)
+                ? cAct.prevencionistas.map(nombreCompleto)
+                : (nomina ? nomina.filter(p => esPrevencionista(p.cargo)).map(nombreCompleto) : PREVENCIONISTAS_GENERAL);
             poblarSelect('supervisor', 'Seleccione supervisor...', sups);
             poblarSelect('prevencionista', 'Seleccione prevencionista...', prevs);
 
@@ -894,6 +1071,7 @@
             document.getElementById('lbl_camionetas').textContent = `Camionetas ${emp.abrev}`;
 
             actualizarLabelAST();
+            actualizarEstadoFirma();
         }
 
         function onLugarEfeChange() {
@@ -938,7 +1116,11 @@
         function getNominaTrabajadores() {
             const nomina = getNominaVigente();
             if (!nomina) return null;
-            return nomina.filter(p => !esSupervisor(p.cargo) && !esPrevencionista(p.cargo));
+            // Quienes la contratista designa como supervisor o prevencionista se informan aparte
+            const c = getContratista();
+            const aparte = new Set([].concat((c && c.supervisores) || [], (c && c.prevencionistas) || [])
+                .map(p => p.rut));
+            return nomina.filter(p => !esSupervisor(p.cargo) && !esPrevencionista(p.cargo) && !aparte.has(p.rut));
         }
 
         /* Visitas: personas fuera de la nómina agregadas a mano para esta
@@ -1059,6 +1241,8 @@
         }
 
         function getLugar() {
+            const cFija = getContratista();
+            if (cFija && cFija.lugarFijo) return cFija.lugarFijo;
             const cfg = getConfigContrato();
             if (cfg && cfg.lugares) {
                 const sel = document.getElementById('lugar_efe').value;
@@ -1290,10 +1474,7 @@
                 // Firma → objeto imagen orientado (si existe)
                 // Usamos toData() (datos reales de los trazos) en vez de isEmpty(),
                 // porque tras restaurar la firma en un resize isEmpty() no es fiable.
-                let firma = null;
-                if (signaturePad.toData().length > 0) {
-                    firma = await loadImageObj(signaturePad.toDataURL('image/png'), { png: true, maxSide: 800 });
-                }
+                const firma = await resolverFirma();
 
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
@@ -1306,6 +1487,7 @@
 
                 /* ── Tabla: Información general ── */
                 // En ENTEL firma quien realiza el reporte, con su propio cargo
+                const etqSup = (contratista && contratista.supervisorDeSice) ? 'SICE' : emp.abrev;
                 const repEntel = esEntel() ? getReporteEntel() : null;
                 const nombrePreve = repEntel ? repEntel.nombre : document.getElementById('prevencionista').value;
                 const leyendaFirma = repEntel ? repEntel.cargo.toUpperCase() + ' SICE' : null;
@@ -1359,10 +1541,10 @@
                     body: repEntel ? [
                         ['Reporte realizado por', repEntel.nombre],
                         ['Cargo', repEntel.cargo],
-                        [`Supervisor ${emp.abrev}`, (repEntel.rol === 'SUPERVISOR' ? repEntel.nombre : repEntel.sup) || 'No especificado'],
+                        [`Supervisor ${etqSup}`, (repEntel.rol === 'SUPERVISOR' ? repEntel.nombre : repEntel.sup) || 'No especificado'],
                         ['Prevencionista de Riesgos', (repEntel.rol === 'PREVENCIONISTA' ? repEntel.nombre : repEntel.prev) || 'No especificado'],
                     ] : [
-                        [`Supervisor ${emp.abrev}`, document.getElementById('supervisor').value || 'No especificado'],
+                        [`Supervisor ${etqSup}`, document.getElementById('supervisor').value || 'No especificado'],
                         ['Prevencionista de Riesgos', nombrePreve || 'No especificado'],
                     ]
                 });
